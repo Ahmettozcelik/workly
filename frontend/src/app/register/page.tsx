@@ -1,7 +1,9 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { Metadata } from "next";
+import { getImageProps } from "next/image";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { registrationCopy as copy } from "./copy";
 import { RegistrationForm } from "./registration-form";
@@ -10,12 +12,25 @@ export const metadata: Metadata = {
   title: copy.metaTitle,
 };
 
+// Decorative office/city photographs for the desktop brand panel, one per
+// theme (same 1376x768 composition: sunset for light, night for dark). Each is
+// rendered only when its file exists; the Midnight panel is the fallback.
+const PHOTO_SIZE = { width: 1376, height: 768 };
+const OFFICE_PHOTOS = {
+  light: "/images/Workly-Light.jpg",
+  dark: "/images/Workly-Dark.jpg",
+};
+const photoExists = (src: string) =>
+  existsSync(join(process.cwd(), "public", src));
+const hasOfficePhoto =
+  photoExists(OFFICE_PHOTOS.light) && photoExists(OFFICE_PHOTOS.dark);
+
 export default function RegisterPage() {
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_clamp(400px,25vw,440px)]">
       <BrandPanel />
 
-      <div className="flex min-h-dvh flex-col px-4 py-5 sm:px-8 lg:py-8">
+      <div className="flex min-h-dvh flex-col px-5 py-5 sm:px-10 lg:px-8 lg:py-8">
         <header className="flex items-center justify-between gap-4 lg:justify-end">
           <div className="flex items-center gap-3 lg:hidden">
             <Logo />
@@ -24,14 +39,12 @@ export default function RegisterPage() {
           <ThemeToggle />
         </header>
 
-        <main className="flex flex-1 flex-col items-center justify-start py-8 sm:justify-center lg:py-12">
-          <div className="w-full max-w-md space-y-6">
-            <p className="text-sm font-medium text-fg-muted lg:hidden">
+        <main className="flex flex-1 flex-col items-center justify-start pt-8 pb-12 sm:justify-center sm:py-12">
+          <div className="w-full max-w-md space-y-8">
+            <p className="border-s-2 border-accent ps-3 text-sm font-medium text-fg-muted lg:hidden">
               {copy.brand.points[0]}
             </p>
-            <Card padding="lg">
-              <RegistrationForm />
-            </Card>
+            <RegistrationForm />
           </div>
         </main>
       </div>
@@ -40,21 +53,14 @@ export default function RegisterPage() {
 }
 
 // Always dark (Midnight) in both themes. Semantic text tokens are re-pointed
-// locally so existing components (Logo, Badge) render in light-on-dark.
+// locally so existing components (Logo, Badge) render light-on-dark.
 function BrandPanel() {
   return (
     <aside
       aria-label="Workly"
-      className="relative m-3 hidden overflow-hidden rounded-card border border-line bg-(--wk-midnight) p-10 text-fg [--fg-muted:#9ca3af] [--fg:var(--wk-offwhite)] [--line-strong:#64708c] lg:flex lg:flex-col xl:p-14"
+      className="relative hidden overflow-hidden border-e border-line bg-(--wk-midnight) p-10 text-fg [--fg-muted:#9ca3af] [--fg:var(--wk-offwhite)] [--line-strong:#64708c] lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col xl:p-14 2xl:p-16"
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -end-24 -top-24 size-80 rounded-full bg-(--wk-purple) opacity-25 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-32 -start-20 size-72 rounded-full bg-(--wk-lime) opacity-15 blur-3xl"
-      />
+      {hasOfficePhoto && <OfficePhoto />}
 
       <div className="relative flex items-center gap-3">
         <Logo />
@@ -65,7 +71,7 @@ function BrandPanel() {
         <p className="max-w-md font-display text-display font-bold">
           {copy.brand.headline}
         </p>
-        <ul className="space-y-5">
+        <ul className="max-w-md space-y-5">
           {copy.brand.points.map((point) => (
             <li key={point} className="flex gap-3 text-lg">
               <CheckIcon />
@@ -75,6 +81,49 @@ function BrandPanel() {
         </ul>
       </div>
     </aside>
+  );
+}
+
+// Optimised (next/image) URLs as a CSS image-set, per the Next.js docs.
+function imageSet(src: string) {
+  const {
+    props: { srcSet = "" },
+  } = getImageProps({ src, ...PHOTO_SIZE, alt: "", quality: 75 });
+  const candidates = srcSet
+    .split(", ")
+    .map((entry) => {
+      const [url, density] = entry.split(" ");
+      return `url("${url}") ${density}`;
+    })
+    .join(", ");
+  return `image-set(${candidates})`;
+}
+
+function OfficePhoto() {
+  // The whole 1376x768 frame is shown, uncropped and undistorted: a box with
+  // the photo's own aspect ratio spans the top of the panel and dissolves
+  // into the Midnight panel below, where the headline and messages sit.
+  // Theme-specific CSS backgrounds: browsers fetch only the visible one, and
+  // nothing below lg (the panel is display:none there). data-theme is set
+  // before first paint, so the right photo shows without a flash.
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-x-0 top-0 aspect-[1376/768]">
+        <div
+          className="absolute inset-0 bg-cover bg-center contrast-[1.06] dark:hidden"
+          style={{ backgroundImage: imageSet(OFFICE_PHOTOS.light) }}
+        />
+        <div
+          className="absolute inset-0 hidden bg-cover bg-center contrast-[1.06] dark:block"
+          style={{ backgroundImage: imageSet(OFFICE_PHOTOS.dark) }}
+        />
+        <div className="absolute inset-0 bg-linear-to-b from-(--wk-midnight)/0 from-55% to-(--wk-midnight) to-100%" />
+      </div>
+      {/* Text scrim limited to the copy column (fixed px, so wide panels keep
+          the sunset sky and tower clear) and masked out above the headline. */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,color-mix(in_srgb,var(--wk-midnight)_90%,transparent)_0px,color-mix(in_srgb,var(--wk-midnight)_78%,transparent)_440px,transparent_720px)] [mask-image:linear-gradient(to_bottom,transparent_16%,black_38%)]" />
+      <div className="absolute inset-0 bg-radial-[at_0%_0%] from-(--wk-midnight)/95 from-0% via-(--wk-midnight)/88 via-22% to-(--wk-midnight)/0 to-38%" />
+    </div>
   );
 }
 
