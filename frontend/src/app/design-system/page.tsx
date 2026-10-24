@@ -3,8 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
@@ -240,10 +244,88 @@ export default function DesignSystemPage() {
           </div>
         </Section>
 
+        <Section title="Checkbox">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Checkbox label="Default" />
+            <Checkbox label="Checked" defaultChecked />
+            <Checkbox
+              label="With description"
+              description="Descriptions sit below the label and are announced."
+            />
+            <Checkbox label="Required" required />
+            <Checkbox
+              label="With error"
+              required
+              error="This box must be checked to continue."
+            />
+            <Checkbox label="Disabled" disabled />
+            <Checkbox label="Disabled and checked" disabled defaultChecked />
+            <Checkbox
+              label="Uzun Türkçe etiket: Ürün güncellemeleri ve iş fırsatları hakkında e-posta almak istiyorum"
+              description="İstediğin zaman ayarlardan değiştirebilirsin."
+            />
+          </div>
+        </Section>
+
+        <Section title="Badge">
+          <Subsection title="On canvas">
+            <Badge>Neutral</Badge>
+            <Badge variant="accent">Accent</Badge>
+            <Badge variant="success">Verified Email</Badge>
+            <Badge variant="danger">Danger</Badge>
+          </Subsection>
+          <Card padding="sm">
+            <h3 className="mb-3 text-sm font-semibold text-fg-muted">On surface</h3>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge>Neutral</Badge>
+              <Badge variant="accent">Accent</Badge>
+              <Badge variant="success">Verified Email</Badge>
+              <Badge variant="danger">Danger</Badge>
+            </div>
+          </Card>
+        </Section>
+
+        <Section title="Avatar">
+          <Subsection title="Sizes (sm 32 · md 40 · lg 56)">
+            <Avatar name="İlker Çağlar" size="sm" />
+            <Avatar name="İlker Çağlar" />
+            <Avatar name="İlker Çağlar" size="lg" />
+          </Subsection>
+          <Subsection title="Turkish-aware initials">
+            <Avatar name="ilker çağlar" />
+            <Avatar name="ışıl şahin" />
+            <Avatar name="Ömer" />
+            <Avatar name="  Zeynep   Nur  Öztürk " />
+            <Avatar name="" />
+          </Subsection>
+          <Subsection title="Decorative (name shown next to it)">
+            <span className="inline-flex items-center gap-3">
+              <Avatar name="Şule Yıldız" decorative />
+              <span className="font-semibold">Şule Yıldız</span>
+            </span>
+          </Subsection>
+        </Section>
+
+        <Section title="Alert">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Alert variant="danger" title="We couldn't save your changes">
+              Please check the highlighted fields and try again.
+            </Alert>
+            <Alert variant="success" title="Check your inbox">
+              We sent a verification link to your email address.
+            </Alert>
+            <Alert title="Heads up">Neutral information without urgency.</Alert>
+            <Alert variant="danger">Message only, without a title.</Alert>
+          </div>
+        </Section>
+
         <Section title="Example form">
           <Card padding="lg" className="max-w-lg">
             {/* Preview only: the button does not submit. */}
             <form noValidate className="space-y-5">
+              <Alert variant="danger" title="Submission failed">
+                Form-level errors appear here, above the fields.
+              </Alert>
               <p className="text-sm text-fg-muted">
                 <span aria-hidden="true" className="text-danger">
                   *

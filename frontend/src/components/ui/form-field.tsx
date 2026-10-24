@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { mergeIds } from "@/lib/merge-ids";
 
 // Must stay server-compatible: do NOT add "use client". `children` is a
 // function, which a Server Component cannot pass to a Client Component.
@@ -76,11 +77,4 @@ export function FormField({
       )}
     </div>
   );
-}
-
-function mergeIds(...values: Array<string | undefined>) {
-  const ids = new Set(
-    values.flatMap((value) => value?.split(/\s+/) ?? []).filter(Boolean),
-  );
-  return ids.size > 0 ? [...ids].join(" ") : undefined;
 }
