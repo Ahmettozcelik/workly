@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { hasLocale } from "next-intl";
+import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ThemeScript } from "@/components/theme/theme-script";
 import { ThemeSync } from "@/components/theme/theme-sync";
@@ -17,9 +17,11 @@ export async function generateMetadata({
   params,
 }: LayoutProps<"/[locale]">): Promise<Metadata> {
   const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) notFound();
   const t = await getTranslations({ locale, namespace: "common" });
   return {
-    title: t("appTitle"),
+    // Pages set only their own title, e.g. "Kayıt ol" -> "Kayıt ol · Workly".
+    title: { default: t("appTitle"), template: "%s · Workly" },
   };
 }
 
@@ -44,7 +46,8 @@ export default async function RootLayout({
       </head>
       <body>
         <ThemeSync />
-        {children}
+        {/* Gives client components (form, theme toggle) the locale and messages. */}
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>
   );

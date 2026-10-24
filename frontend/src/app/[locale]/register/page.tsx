@@ -1,22 +1,43 @@
 import type { Metadata } from "next";
 import { getImageProps, type StaticImageData } from "next/image";
+import { notFound } from "next/navigation";
+import { hasLocale, useTranslations } from "next-intl";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
-import { registrationCopy as copy } from "./copy";
+import { routing } from "@/i18n/routing";
 import darkPhoto from "./images/Workly-Dark.jpg";
 import lightPhoto from "./images/Workly-Light.jpg";
 import { RegistrationForm } from "./registration-form";
 
-export const metadata: Metadata = {
-  title: copy.metaTitle,
-};
+// Brand panel messages, in display order (auth.brand.points.*).
+const BRAND_POINTS = ["oneAccount", "workEmail", "verify"] as const;
+
+export async function generateMetadata({
+  params,
+}: PageProps<"/[locale]/register">): Promise<Metadata> {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) notFound();
+  const t = await getTranslations({ locale, namespace: "auth.register.meta" });
+  return {
+    title: t("title"),
+  };
+}
 
 // Decorative office/city photographs for the desktop brand panel, one per
 // theme (same composition: sunset for light, night for dark). Static imports
 // give Next.js the dimensions and fail the build if a file is missing.
 
-export default function RegisterPage() {
+export default async function RegisterPage({
+  params,
+}: PageProps<"/[locale]/register">) {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) notFound();
+  // Keeps the page static (no request headers needed to read the locale).
+  setRequestLocale(locale);
+  const t = await getTranslations();
+
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_clamp(400px,25vw,440px)]">
       <BrandPanel />
@@ -25,7 +46,7 @@ export default function RegisterPage() {
         <header className="flex items-center justify-between gap-4 lg:justify-end">
           <div className="flex items-center gap-3 lg:hidden">
             <Logo />
-            <Badge>{copy.prototypeBadge}</Badge>
+            <Badge>{t("prototype.badge")}</Badge>
           </div>
           <ThemeToggle />
         </header>
@@ -33,7 +54,7 @@ export default function RegisterPage() {
         <main className="flex flex-1 flex-col items-center justify-start pt-8 pb-12 sm:justify-center sm:py-12">
           <div className="w-full max-w-md space-y-8">
             <p className="border-s-2 border-accent ps-3 text-sm font-medium text-fg-muted lg:hidden">
-              {copy.brand.points[0]}
+              {t("auth.brand.points.oneAccount")}
             </p>
             <RegistrationForm />
           </div>
@@ -46,6 +67,8 @@ export default function RegisterPage() {
 // Always dark (Midnight) in both themes. The on-midnight utility re-points the
 // semantic text tokens so existing components (Logo, Badge) render light-on-dark.
 function BrandPanel() {
+  const t = useTranslations();
+
   return (
     <aside
       aria-label="Workly"
@@ -55,18 +78,18 @@ function BrandPanel() {
 
       <div className="relative flex items-center gap-3">
         <Logo />
-        <Badge>{copy.prototypeBadge}</Badge>
+        <Badge>{t("prototype.badge")}</Badge>
       </div>
 
       <div className="relative mt-auto space-y-10 pt-16">
         <p className="max-w-md font-display text-display font-bold">
-          {copy.brand.headline}
+          {t("auth.brand.headline")}
         </p>
         <ul className="max-w-md space-y-5">
-          {copy.brand.points.map((point) => (
+          {BRAND_POINTS.map((point) => (
             <li key={point} className="flex gap-3 text-lg">
               <CheckIcon />
-              <span>{point}</span>
+              <span>{t(`auth.brand.points.${point}`)}</span>
             </li>
           ))}
         </ul>

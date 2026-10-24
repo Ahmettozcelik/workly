@@ -1,5 +1,76 @@
 {
   "common": {
-    "appTitle": "Workly"
+    "appTitle": "Workly",
+    "requiredNote": "Zorunlu alan",
+    "email": {
+      "label": "E-posta",
+      "errorEmpty": "E-posta adresini gir.",
+      "errorInvalid": "Geçerli bir e-posta adresi gir."
+    },
+    "password": {
+      "label": "Şifre",
+      "show": "Şifreyi göster"
+    },
+    "errorSummary": {
+      "title": "Bazı alanlar eksik veya hatalı",
+      "body": "Lütfen işaretli alanları düzelt ve tekrar dene."
+    }
+  },
+  "prototype": {
+    "badge": "Prototip",
+    "registerNotice": "Prototip: Gerçek bir hesap oluşturulmadı ve e-posta gönderilmedi."
+  },
+  "auth": {
+    "brand": {
+      "headline": "Profesyonel yolculuğun burada başlıyor.",
+      "points": {
+        "oneAccount": "Tek kişisel hesap. Kariyerin boyunca seninle.",
+        "workEmail": "İş e-postanı daha sonra ekleyebilirsin; ayrı bir hesap gerekmez.",
+        "verify": "E-postanı doğruladıktan sonra paylaşım yapabilir, başvurabilir ve mesajlaşabilirsin."
+      }
+    },
+    "register": {
+      "meta": {
+        "title": "Kayıt ol"
+      },
+      "title": "Workly'ye katıl",
+      "subtitle": "Tek bir kişisel hesapla başla.",
+      "email": {
+        "hint": "Kişisel e-posta adresini kullan. İş e-postanı şirket bağlantısı için daha sonra ekleyebilirsin."
+      },
+      "password": {
+        "hint": "En az {min} karakter.",
+        "errorEmpty": "Bir şifre belirle.",
+        "errorTooShort": "Şifren en az {min} karakter olmalı."
+      },
+      "submit": "Hesap oluştur",
+      "submitting": "Hesap oluşturuluyor",
+      "legal": "Devam ederek <terms>Kullanım Koşulları</terms>'nı kabul etmiş ve <privacy>Aydınlatma Metni</privacy>'ni okumuş olursun.",
+      "signInPrompt": "Zaten hesabın var mı? Giriş yap",
+      "success": {
+        "title": "E-postanı kontrol et",
+        "sentTo": "Doğrulama bağlantısını {email} adresine gönderdik.",
+        "nextSteps": "E-postanı doğruladıktan sonra paylaşım yapabilir, iş ilanlarına başvurabilir ve mesajlaşabilirsin. Profilini dilediğin zaman tamamlayabilirsin.",
+        "useDifferentEmail": "Farklı bir e-posta kullan"
+      }
+    }
+  },
+  "theme": {
+    "label": "Tema: {current}. {switchTo}",
+    "name": {
+      "system": "Sistem",
+      "light": "Açık",
+      "dark": "Koyu"
+    },
+    "switchTo": {
+      "system": "Sistem temasına geç",
+      "light": "Açık temaya geç",
+      "dark": "Koyu temaya geç"
+    },
+    "selected": {
+      "system": "Sistem teması seçildi",
+      "light": "Açık tema seçildi",
+      "dark": "Koyu tema seçildi"
+    }
   }
 }
