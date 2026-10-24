@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* dark: utilities follow the resolved theme set on <html> (system or manual). */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 /* ---------------------------------------------------------------------------
    1. Brand primitives — the agreed Workly palette. Never change these values.
    --------------------------------------------------------------------------- */

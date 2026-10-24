@@ -1,8 +1,11 @@
-// Temporary Step 2.1 check for tokens and Turkish glyphs; replaced by the
-// /design-system preview in Step 2.3.
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+
+// Temporary Step 2.1/2.2 check for tokens, Turkish glyphs and theme switching;
+// replaced by the /design-system preview in Step 2.3.
 export default function Home() {
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-6">
+      <ThemeToggle />
       <h1 className="font-display text-display font-bold">
         İstanbul&apos;da ığdır şçöü
       </h1>
