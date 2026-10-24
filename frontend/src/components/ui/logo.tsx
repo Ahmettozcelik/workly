@@ -24,9 +24,6 @@ export function Logo({ size = "md", className, ...props }: LogoProps) {
       {...props}
     >
       Workly
-      <span aria-hidden="true" className="text-accent">
-        .
-      </span>
     </span>
   );
 }
