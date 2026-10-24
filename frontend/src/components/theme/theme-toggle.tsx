@@ -9,11 +9,22 @@ import {
   type ThemePreference,
 } from "@/lib/theme";
 
-// English for now; moves to next-intl messages in Step 3.
-const LABELS: Record<ThemePreference, string> = {
-  system: "System",
-  light: "Light",
-  dark: "Dark",
+// Turkish (the default locale); moves to next-intl messages with i18n.
+// Full phrases per mode, since Turkish suffixes depend on the word.
+const NAMES: Record<ThemePreference, string> = {
+  system: "Sistem",
+  light: "Açık",
+  dark: "Koyu",
+};
+const SWITCH_TO: Record<ThemePreference, string> = {
+  system: "Sistem temasına geç",
+  light: "Açık temaya geç",
+  dark: "Koyu temaya geç",
+};
+const SELECTED: Record<ThemePreference, string> = {
+  system: "Sistem teması seçildi",
+  light: "Açık tema seçildi",
+  dark: "Koyu tema seçildi",
 };
 
 // The server cannot know the stored preference, so hydration starts from
@@ -29,11 +40,11 @@ export function ThemeToggle() {
   const [announcement, setAnnouncement] = useState("");
 
   const next = nextPreference(preference);
-  const label = `Theme: ${LABELS[preference]}. Switch to ${LABELS[next]}`;
+  const label = `Tema: ${NAMES[preference]}. ${SWITCH_TO[next]}`;
 
   function handleClick() {
     setPreference(next);
-    setAnnouncement(`Theme: ${LABELS[next]}`);
+    setAnnouncement(SELECTED[next]);
   }
 
   return (

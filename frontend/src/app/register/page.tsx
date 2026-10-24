@@ -1,11 +1,11 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import type { Metadata } from "next";
-import { getImageProps } from "next/image";
+import { getImageProps, type StaticImageData } from "next/image";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
 import { registrationCopy as copy } from "./copy";
+import darkPhoto from "./images/Workly-Dark.jpg";
+import lightPhoto from "./images/Workly-Light.jpg";
 import { RegistrationForm } from "./registration-form";
 
 export const metadata: Metadata = {
@@ -13,17 +13,8 @@ export const metadata: Metadata = {
 };
 
 // Decorative office/city photographs for the desktop brand panel, one per
-// theme (same 1376x768 composition: sunset for light, night for dark). Each is
-// rendered only when its file exists; the Midnight panel is the fallback.
-const PHOTO_SIZE = { width: 1376, height: 768 };
-const OFFICE_PHOTOS = {
-  light: "/images/Workly-Light.jpg",
-  dark: "/images/Workly-Dark.jpg",
-};
-const photoExists = (src: string) =>
-  existsSync(join(process.cwd(), "public", src));
-const hasOfficePhoto =
-  photoExists(OFFICE_PHOTOS.light) && photoExists(OFFICE_PHOTOS.dark);
+// theme (same composition: sunset for light, night for dark). Static imports
+// give Next.js the dimensions and fail the build if a file is missing.
 
 export default function RegisterPage() {
   return (
@@ -52,15 +43,15 @@ export default function RegisterPage() {
   );
 }
 
-// Always dark (Midnight) in both themes. Semantic text tokens are re-pointed
-// locally so existing components (Logo, Badge) render light-on-dark.
+// Always dark (Midnight) in both themes. The on-midnight utility re-points the
+// semantic text tokens so existing components (Logo, Badge) render light-on-dark.
 function BrandPanel() {
   return (
     <aside
       aria-label="Workly"
-      className="relative hidden overflow-hidden border-e border-line bg-(--wk-midnight) p-10 text-fg [--fg-muted:#9ca3af] [--fg:var(--wk-offwhite)] [--line-strong:#64708c] lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col xl:p-14 2xl:p-16"
+      className="relative hidden overflow-hidden border-e border-line bg-(--wk-midnight) p-10 text-fg on-midnight lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col xl:p-14 2xl:p-16"
     >
-      {hasOfficePhoto && <OfficePhoto />}
+      <OfficePhoto />
 
       <div className="relative flex items-center gap-3">
         <Logo />
@@ -85,10 +76,10 @@ function BrandPanel() {
 }
 
 // Optimised (next/image) URLs as a CSS image-set, per the Next.js docs.
-function imageSet(src: string) {
+function imageSet(photo: StaticImageData) {
   const {
     props: { srcSet = "" },
-  } = getImageProps({ src, ...PHOTO_SIZE, alt: "", quality: 75 });
+  } = getImageProps({ src: photo, alt: "", quality: 75 });
   const candidates = srcSet
     .split(", ")
     .map((entry) => {
@@ -111,11 +102,11 @@ function OfficePhoto() {
       <div className="absolute inset-x-0 top-0 aspect-[1376/768]">
         <div
           className="absolute inset-0 bg-cover bg-center contrast-[1.06] dark:hidden"
-          style={{ backgroundImage: imageSet(OFFICE_PHOTOS.light) }}
+          style={{ backgroundImage: imageSet(lightPhoto) }}
         />
         <div
           className="absolute inset-0 hidden bg-cover bg-center contrast-[1.06] dark:block"
-          style={{ backgroundImage: imageSet(OFFICE_PHOTOS.dark) }}
+          style={{ backgroundImage: imageSet(darkPhoto) }}
         />
         <div className="absolute inset-0 bg-linear-to-b from-(--wk-midnight)/0 from-55% to-(--wk-midnight) to-100%" />
       </div>
