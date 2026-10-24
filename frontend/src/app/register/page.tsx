@@ -52,13 +52,13 @@ export default function RegisterPage() {
   );
 }
 
-// Always dark (Midnight) in both themes. Semantic text tokens are re-pointed
-// locally so existing components (Logo, Badge) render light-on-dark.
+// Always dark (Midnight) in both themes. The on-midnight utility re-points the
+// semantic text tokens so existing components (Logo, Badge) render light-on-dark.
 function BrandPanel() {
   return (
     <aside
       aria-label="Workly"
-      className="relative hidden overflow-hidden border-e border-line bg-(--wk-midnight) p-10 text-fg [--fg-muted:#9ca3af] [--fg:var(--wk-offwhite)] [--line-strong:#64708c] lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col xl:p-14 2xl:p-16"
+      className="relative hidden overflow-hidden border-e border-line bg-(--wk-midnight) p-10 text-fg on-midnight lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col xl:p-14 2xl:p-16"
     >
       {hasOfficePhoto && <OfficePhoto />}
 

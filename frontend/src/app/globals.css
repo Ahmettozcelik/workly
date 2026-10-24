@@ -41,6 +41,13 @@
     0 16px 40px -12px rgb(17 24 39 / 0.2);
 }
 
+/* Derived dark-scheme tones, defined once: used by both dark blocks below and
+   by the always-dark `on-midnight` utility. */
+:root {
+  --wk-dark-fg-muted: #9ca3af;
+  --wk-dark-line-strong: #64708c;
+}
+
 /* Dark values. The media query follows the OS; [data-theme] (Step 2.2) lets a
    manual choice override it. Keep both blocks identical. */
 @media (prefers-color-scheme: dark) {
@@ -51,9 +58,9 @@
     --surface: #1a2233;
     --surface-raised: #232c3f;
     --fg: var(--wk-offwhite);
-    --fg-muted: #9ca3af;
+    --fg-muted: var(--wk-dark-fg-muted);
     --line: #2a3346;
-    --line-strong: #64708c;
+    --line-strong: var(--wk-dark-line-strong);
     --primary: var(--wk-lime);
     --primary-fg: var(--wk-midnight);
     --accent: var(--wk-purple);
@@ -74,9 +81,9 @@
   --surface: #1a2233;
   --surface-raised: #232c3f;
   --fg: var(--wk-offwhite);
-  --fg-muted: #9ca3af;
+  --fg-muted: var(--wk-dark-fg-muted);
   --line: #2a3346;
-  --line-strong: #64708c;
+  --line-strong: var(--wk-dark-line-strong);
   --primary: var(--wk-lime);
   --primary-fg: var(--wk-midnight);
   --accent: var(--wk-purple);
@@ -128,6 +135,15 @@
 
   --shadow-card: var(--elevation-card);
   --shadow-raised: var(--elevation-raised);
+}
+
+/* Always-dark scope (e.g. the Midnight brand panel): re-points the text tokens
+   to their dark-scheme values in both themes, so components inside it render
+   light-on-dark. */
+@utility on-midnight {
+  --fg: var(--wk-offwhite);
+  --fg-muted: var(--wk-dark-fg-muted);
+  --line-strong: var(--wk-dark-line-strong);
 }
 
 /* ---------------------------------------------------------------------------
