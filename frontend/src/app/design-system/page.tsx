@@ -5,7 +5,11 @@ import type { ReactNode } from "react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 // Developer-only preview of the design system. Returns 404 in production.
 const isProduction = process.env.NODE_ENV === "production";
@@ -135,6 +139,138 @@ export default function DesignSystemPage() {
               Link (secondary)
             </Link>
           </Subsection>
+        </Section>
+
+        <Section title="Input">
+          <div className="grid gap-6 md:grid-cols-2">
+            <FormField label="Default">
+              {(control) => <Input placeholder="Placeholder text" {...control} />}
+            </FormField>
+            <FormField label="With hint" hint="Helper text sits between label and control.">
+              {(control) => <Input type="email" autoComplete="off" {...control} />}
+            </FormField>
+            <FormField label="Required" required>
+              {(control) => <Input {...control} />}
+            </FormField>
+            <FormField
+              label="With error"
+              hint="Use your personal email address."
+              error="Enter a valid email address."
+              required
+            >
+              {(control) => (
+                <Input type="email" defaultValue="not-an-email" {...control} />
+              )}
+            </FormField>
+            <FormField label="Disabled" disabled>
+              {(control) => <Input defaultValue="Disabled value" {...control} />}
+            </FormField>
+            <FormField label="Read-only" hint="Focusable, not editable.">
+              {(control) => <Input readOnly defaultValue="Read-only value" {...control} />}
+            </FormField>
+          </div>
+        </Section>
+
+        <Section title="Textarea">
+          <div className="grid gap-6 md:grid-cols-2">
+            <FormField label="Default (4 rows, vertical resize)">
+              {(control) => <Textarea placeholder="Write something…" {...control} />}
+            </FormField>
+            <FormField label="With error" error="This field cannot be empty." required>
+              {(control) => <Textarea {...control} />}
+            </FormField>
+          </div>
+        </Section>
+
+        <Section title="Select">
+          <div className="grid gap-6 md:grid-cols-2">
+            <FormField label="Default with placeholder option">
+              {(control) => (
+                <Select defaultValue="" {...control}>
+                  <option value="" disabled>
+                    Choose an option…
+                  </option>
+                  <option value="a">Option A</option>
+                  <option value="b">Option B</option>
+                </Select>
+              )}
+            </FormField>
+            <FormField label="With error" error="Please choose an option." required>
+              {(control) => (
+                <Select defaultValue="" {...control}>
+                  <option value="" disabled>
+                    Choose an option…
+                  </option>
+                  <option value="a">Option A</option>
+                </Select>
+              )}
+            </FormField>
+            <FormField label="Disabled" disabled>
+              {(control) => (
+                <Select defaultValue="a" {...control}>
+                  <option value="a">Option A</option>
+                </Select>
+              )}
+            </FormField>
+          </div>
+        </Section>
+
+        <Section title="Form field">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <FormField
+                label="Extra description (describedBy)"
+                hint="Hint, error and extra IDs are merged."
+                describedBy="ds-notes-counter"
+              >
+                {(control) => <Textarea rows={3} {...control} />}
+              </FormField>
+              <p id="ds-notes-counter" className="text-sm text-fg-muted">
+                0 / 500 characters
+              </p>
+            </div>
+            <FormField
+              label="Uzun Türkçe etiket: İş deneyimini daha sonra profiline ekleyebilirsin"
+              hint="İpucu metni de uzun olabilir ve satır kaydırması yapmalıdır."
+              error="Lütfen geçerli bir değer girin; bu hata mesajı da uzun olabilir."
+              required
+            >
+              {(control) => <Input {...control} />}
+            </FormField>
+          </div>
+        </Section>
+
+        <Section title="Example form">
+          <Card padding="lg" className="max-w-lg">
+            {/* Preview only: the button does not submit. */}
+            <form noValidate className="space-y-5">
+              <p className="text-sm text-fg-muted">
+                <span aria-hidden="true" className="text-danger">
+                  *
+                </span>{" "}
+                Required field
+              </p>
+              <FormField label="Email" hint="Use your personal email address." required>
+                {(control) => <Input type="email" autoComplete="off" {...control} />}
+              </FormField>
+              <FormField label="Topic">
+                {(control) => (
+                  <Select defaultValue="" {...control}>
+                    <option value="" disabled>
+                      Choose a topic…
+                    </option>
+                    <option value="general">General</option>
+                  </Select>
+                )}
+              </FormField>
+              <FormField label="Message">
+                {(control) => <Textarea {...control} />}
+              </FormField>
+              <Button size="lg" fullWidth>
+                Continue
+              </Button>
+            </form>
+          </Card>
         </Section>
 
         <Section title="Card">
