@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { test as base, expect, type Page } from "@playwright/test";
 
@@ -18,7 +21,32 @@ const test = base.extend<{ consoleGuard: void }>({
 });
 
 const THEME_KEY = "workly-theme";
-const PHOTO_URL = /Workly-(Light|Dark)/;
+
+// Photos are identified by their bytes, not by (hashed) URLs or DOM order.
+const sha256 = (data: Buffer) => createHash("sha256").update(data).digest("hex");
+const PHOTO_DIR = join(__dirname, "../src/app/register/images");
+const PHOTO_BY_HASH: Record<string, "light" | "dark"> = {
+  [sha256(readFileSync(join(PHOTO_DIR, "Workly-Light.jpg")))]: "light",
+  [sha256(readFileSync(join(PHOTO_DIR, "Workly-Dark.jpg")))]: "dark",
+};
+// The panel photos load through the Next.js optimiser: /_next/image?url=<asset>&...
+const isPhotoRequest = (url: string) => new URL(url).pathname === "/_next/image";
+
+// Fetches the original asset behind an optimiser URL and names it by its bytes.
+async function photoBehind(page: Page, optimiserUrl: string) {
+  const asset = new URL(optimiserUrl, page.url()).searchParams.get("url");
+  const response = await page.request.get(asset ?? "");
+  return PHOTO_BY_HASH[sha256(await response.body())] ?? `unknown asset: ${asset}`;
+}
+
+// Which photo the visible brand-panel layer shows (exactly one layer is visible).
+async function visiblePhoto(page: Page) {
+  const layer = page.locator('aside [style*="image-set"]').filter({ visible: true });
+  await expect(layer).toHaveCount(1);
+  const style = (await layer.getAttribute("style")) ?? "";
+  const firstUrl = style.match(/url\("([^"]+)"\)/)?.[1] ?? "";
+  return photoBehind(page, firstUrl);
+}
 
 const emailField = (page: Page) => page.getByRole("textbox", { name: "E-posta" });
 // Password inputs have no ARIA role, so locate by name; the "structure" test
@@ -30,9 +58,6 @@ const themeToggle = (page: Page) => page.getByRole("button", { name: /^Theme:/ }
 // The form-level error Alert (Next.js also renders an empty role="alert" route announcer).
 const errorSummary = (page: Page) =>
   page.getByRole("alert").filter({ hasText: "Bazı alanlar eksik veya hatalı" });
-// Theme photo layers in the brand panel: [0] light, [1] dark.
-const photoLayers = (page: Page) => page.locator('aside [style*="image-set"]');
-
 const isDesktop = (width: number) => width >= 1024;
 
 test.describe("structure", () => {
@@ -164,8 +189,7 @@ test.describe("theme", () => {
       await page.goto("/register");
       await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
       if (isDesktop(testInfo.project.use.viewport!.width)) {
-        await expect(photoLayers(page).nth(scheme === "light" ? 0 : 1)).toBeVisible();
-        await expect(photoLayers(page).nth(scheme === "light" ? 1 : 0)).toBeHidden();
+        expect(await visiblePhoto(page)).toBe(scheme);
       }
     }
   });
@@ -177,11 +201,12 @@ test.describe("theme", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(themeToggle(page)).toHaveAccessibleName("Theme: Dark. Switch to System");
     if (isDesktop(testInfo.project.use.viewport!.width)) {
-      await expect(photoLayers(page).nth(1)).toBeVisible();
+      expect(await visiblePhoto(page)).toBe("dark");
     }
   });
 
-  test("toggle cycles System → Light → Dark → System and persists", async ({ page }) => {
+  test("toggle cycles System → Light → Dark → System and persists", async ({ page }, testInfo) => {
+    const desktop = isDesktop(testInfo.project.use.viewport!.width);
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/register");
     const stored = () => page.evaluate((key) => localStorage.getItem(key), THEME_KEY);
@@ -195,11 +220,13 @@ test.describe("theme", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(themeToggle(page)).toHaveAccessibleName("Theme: Dark. Switch to System");
     expect(await stored()).toBe("dark");
+    if (desktop) expect(await visiblePhoto(page)).toBe("dark");
 
     await themeToggle(page).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(themeToggle(page)).toHaveAccessibleName("Theme: System. Switch to Light");
     expect(await stored()).toBeNull();
+    if (desktop) expect(await visiblePhoto(page)).toBe("light");
   });
 });
 
@@ -216,24 +243,39 @@ test.describe("responsive", () => {
     });
   }
 
-  test("photo requests match the viewport", async ({ page }, testInfo) => {
-    const photoRequests: string[] = [];
-    page.on("request", (request) => {
-      if (PHOTO_URL.test(decodeURIComponent(request.url()))) photoRequests.push(request.url());
-    });
-    await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/register");
-    await page.waitForLoadState("networkidle");
+  for (const scheme of ["light", "dark"] as const) {
+    test(`desktop fetches only the ${scheme} photo`, async ({ page }, testInfo) => {
+      test.skip(!isDesktop(testInfo.project.use.viewport!.width), "photo panel is desktop-only");
+      const photoRequests: string[] = [];
+      page.on("request", (request) => {
+        if (isPhotoRequest(request.url())) photoRequests.push(request.url());
+      });
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("/register");
+      await page.waitForLoadState("networkidle");
 
-    if (isDesktop(testInfo.project.use.viewport!.width)) {
-      // Only the active theme's photo is fetched.
+      await expect(page.locator("aside")).toBeVisible();
       expect(photoRequests).toHaveLength(1);
-      expect(decodeURIComponent(photoRequests[0])).toContain("Workly-Light");
-    } else {
-      await expect(page.locator("aside")).toBeHidden();
+      expect(await photoBehind(page, photoRequests[0])).toBe(scheme);
+    });
+  }
+
+  for (const width of [375, 768]) {
+    test(`no photo requests at ${width}px`, async ({ page }) => {
+      const photoRequests: string[] = [];
+      page.on("request", (request) => {
+        if (isPhotoRequest(request.url())) photoRequests.push(request.url());
+      });
+      await page.setViewportSize({ width, height: 800 });
+      for (const scheme of ["light", "dark"] as const) {
+        await page.emulateMedia({ colorScheme: scheme });
+        await page.goto("/register");
+        await page.waitForLoadState("networkidle");
+        await expect(page.locator("aside")).toBeHidden();
+      }
       expect(photoRequests).toEqual([]);
-    }
-  });
+    });
+  }
 });
 
 test.describe("accessibility (axe, WCAG 2.x A/AA)", () => {
