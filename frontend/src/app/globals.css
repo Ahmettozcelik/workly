@@ -1,1 +1,157 @@
 @import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   1. Brand primitives — the agreed Workly palette. Never change these values.
+   --------------------------------------------------------------------------- */
+:root {
+  --wk-midnight: #111827;
+  --wk-lime: #c7f36b;
+  --wk-offwhite: #f5f5f0;
+  --wk-purple: #7868f5;
+}
+
+/* ---------------------------------------------------------------------------
+   2. Semantic tokens. Components use only these (via Tailwind utilities).
+      Contrast ratios are documented in docs/frontend/design-system.md.
+   --------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  --canvas: var(--wk-offwhite);
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --fg: var(--wk-midnight);
+  --fg-muted: #4b5563;
+  --line: #e2e2da; /* decorative dividers only */
+  --line-strong: #85857b; /* input/control boundaries, >= 3:1 */
+  --primary: var(--wk-midnight);
+  --primary-fg: var(--wk-lime);
+  --accent: var(--wk-purple); /* fills, icons, large text */
+  --accent-text: #5b4bd8; /* small purple text, links */
+  --focus: var(--wk-purple);
+  --danger: #dc2626;
+  --success: #15803d;
+
+  --elevation-card: 0 1px 2px rgb(17 24 39 / 0.04),
+    0 8px 24px -12px rgb(17 24 39 / 0.12);
+  --elevation-raised: 0 2px 4px rgb(17 24 39 / 0.06),
+    0 16px 40px -12px rgb(17 24 39 / 0.2);
+}
+
+/* Dark values. The media query follows the OS; [data-theme] (Step 2.2) lets a
+   manual choice override it. Keep both blocks identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --canvas: var(--wk-midnight);
+    --surface: #1a2233;
+    --surface-raised: #232c3f;
+    --fg: var(--wk-offwhite);
+    --fg-muted: #9ca3af;
+    --line: #2a3346;
+    --line-strong: #64708c;
+    --primary: var(--wk-lime);
+    --primary-fg: var(--wk-midnight);
+    --accent: var(--wk-purple);
+    --accent-text: #a89eff;
+    --focus: var(--wk-purple);
+    --danger: #f87171;
+    --success: #4ade80;
+
+    --elevation-card: none;
+    --elevation-raised: none;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: var(--wk-midnight);
+  --surface: #1a2233;
+  --surface-raised: #232c3f;
+  --fg: var(--wk-offwhite);
+  --fg-muted: #9ca3af;
+  --line: #2a3346;
+  --line-strong: #64708c;
+  --primary: var(--wk-lime);
+  --primary-fg: var(--wk-midnight);
+  --accent: var(--wk-purple);
+  --accent-text: #a89eff;
+  --focus: var(--wk-purple);
+  --danger: #f87171;
+  --success: #4ade80;
+
+  --elevation-card: none;
+  --elevation-raised: none;
+}
+
+/* ---------------------------------------------------------------------------
+   3. Tailwind theme. Default colour palette is disabled so only Workly tokens
+      can be used (bg-canvas, text-fg-muted, border-line-strong, ...).
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-*: initial;
+
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+
+  --text-display: clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem);
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.02em;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-focus: var(--focus);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-inter), ui-sans-serif,
+    system-ui, sans-serif;
+
+  --shadow-card: var(--elevation-card);
+  --shadow-raised: var(--elevation-raised);
+}
+
+/* ---------------------------------------------------------------------------
+   4. Base styles
+   --------------------------------------------------------------------------- */
+@layer base {
+  body {
+    background-color: var(--canvas);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
