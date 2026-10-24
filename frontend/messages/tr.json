@@ -1,6 +1,7 @@
 {
   "common": {
     "appTitle": "Workly",
+    "appDescription": "Profesyonel yolculuğun burada başlıyor.",
     "requiredNote": "Zorunlu alan",
     "email": {
       "label": "E-posta",
@@ -31,7 +32,8 @@
     },
     "register": {
       "meta": {
-        "title": "Kayıt ol"
+        "title": "Kayıt ol",
+        "description": "Tek bir kişisel hesapla başla."
       },
       "title": "Workly'ye katıl",
       "subtitle": "Tek bir kişisel hesapla başla.",

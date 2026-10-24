@@ -4,6 +4,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ThemeScript } from "@/components/theme/theme-script";
 import { ThemeSync } from "@/components/theme/theme-sync";
+import { siteUrl } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
 import { bricolage, inter } from "@/lib/fonts";
 import "../globals.css";
@@ -19,9 +20,13 @@ export async function generateMetadata({
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   const t = await getTranslations({ locale, namespace: "common" });
+  // Canonical/hreflang are set per indexable page (localeAlternates), not here,
+  // so the design-system page and 404 pages do not inherit them.
   return {
+    metadataBase: siteUrl,
     // Pages set only their own title, e.g. "Kayıt ol" -> "Kayıt ol · Workly".
     title: { default: t("appTitle"), template: "%s · Workly" },
+    description: t("appDescription"),
   };
 }
 

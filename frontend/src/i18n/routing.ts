@@ -8,4 +8,7 @@ export const routing = defineRouting({
   localePrefix: "always",
   // Persisting the chosen language arrives with the language switcher.
   localeCookie: false,
+  // hreflang is declared in page metadata (src/i18n/metadata.ts), only on
+  // indexable pages; no automatic HTTP Link header on every response.
+  alternateLinks: false,
 });

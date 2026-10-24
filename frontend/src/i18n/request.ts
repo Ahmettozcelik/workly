@@ -10,8 +10,6 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
   return {
     locale,
-    // English messages arrive in a later step; until then every locale uses
-    // the Turkish messages.
-    messages: (await import("../../messages/tr.json")).default,
+    messages: (await import(`../../messages/${locale}.json`)).default,
   };
 });

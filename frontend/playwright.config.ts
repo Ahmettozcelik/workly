@@ -30,6 +30,9 @@ export default defineConfig({
   webServer: {
     command: `npm run build && npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/tr/register`,
+    // Production builds require SITE_URL; the tests expect absolute canonical
+    // and hreflang URLs on the test server's own origin.
+    env: { SITE_URL: `http://localhost:${PORT}` },
     reuseExistingServer: false,
     timeout: 180_000,
   },

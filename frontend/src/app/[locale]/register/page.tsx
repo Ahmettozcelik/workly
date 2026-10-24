@@ -6,6 +6,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
+import { localeAlternates } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
 import darkPhoto from "./images/Workly-Dark.jpg";
 import lightPhoto from "./images/Workly-Light.jpg";
@@ -22,6 +23,8 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "auth.register.meta" });
   return {
     title: t("title"),
+    description: t("description"),
+    alternates: localeAlternates(locale, "/register"),
   };
 }
 
