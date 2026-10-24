@@ -1,24 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { test as base, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
-
-// Every test fails if the page logs a console error or throws.
-const test = base.extend<{ consoleGuard: void }>({
-  consoleGuard: [
-    async ({ page }, use) => {
-      const problems: string[] = [];
-      page.on("console", (message) => {
-        if (message.type() === "error") problems.push(message.text());
-      });
-      page.on("pageerror", (error) => problems.push(error.message));
-      await use();
-      expect(problems, "console errors / page errors").toEqual([]);
-    },
-    { auto: true },
-  ],
-});
+import { AXE_TAGS, expect, test } from "./support";
 
 type Messages = { [key: string]: string | Messages };
 const LOCALES = ["tr", "en"] as const;
@@ -41,8 +26,6 @@ function flatten(tree: Messages, prefix = ""): Record<string, string> {
 const flat = { tr: flatten(messages.tr), en: flatten(messages.en) };
 const placeholders = (message: string) => [...message.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 const tags = (message: string) => [...message.matchAll(/<(\/?)(\w+)>/g)].map((m) => `${m[1]}${m[2]}`);
-
-const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 test.describe("message files", () => {
   test("tr.json and en.json have identical keys", () => {

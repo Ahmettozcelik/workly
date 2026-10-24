@@ -1,52 +1,15 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { test as base, expect, type Page } from "@playwright/test";
-
-// Every test fails if the page logs a console error or throws.
-const test = base.extend<{ consoleGuard: void }>({
-  consoleGuard: [
-    async ({ page }, use) => {
-      const problems: string[] = [];
-      page.on("console", (message) => {
-        if (message.type() === "error") problems.push(message.text());
-      });
-      page.on("pageerror", (error) => problems.push(error.message));
-      await use();
-      expect(problems, "console errors / page errors").toEqual([]);
-    },
-    { auto: true },
-  ],
-});
-
-const THEME_KEY = "workly-theme";
-
-// Photos are identified by their bytes, not by (hashed) URLs or DOM order.
-const sha256 = (data: Buffer) => createHash("sha256").update(data).digest("hex");
-const PHOTO_DIR = join(__dirname, "../src/app/[locale]/register/images");
-const PHOTO_BY_HASH: Record<string, "light" | "dark"> = {
-  [sha256(readFileSync(join(PHOTO_DIR, "Workly-Light.jpg")))]: "light",
-  [sha256(readFileSync(join(PHOTO_DIR, "Workly-Dark.jpg")))]: "dark",
-};
-// The panel photos load through the Next.js optimiser: /_next/image?url=<asset>&...
-const isPhotoRequest = (url: string) => new URL(url).pathname === "/_next/image";
-
-// Fetches the original asset behind an optimiser URL and names it by its bytes.
-async function photoBehind(page: Page, optimiserUrl: string) {
-  const asset = new URL(optimiserUrl, page.url()).searchParams.get("url");
-  const response = await page.request.get(asset ?? "");
-  return PHOTO_BY_HASH[sha256(await response.body())] ?? `unknown asset: ${asset}`;
-}
-
-// Which photo the visible brand-panel layer shows (exactly one layer is visible).
-async function visiblePhoto(page: Page) {
-  const layer = page.locator('aside [style*="image-set"]').filter({ visible: true });
-  await expect(layer).toHaveCount(1);
-  const style = (await layer.getAttribute("style")) ?? "";
-  const firstUrl = style.match(/url\("([^"]+)"\)/)?.[1] ?? "";
-  return photoBehind(page, firstUrl);
-}
+import type { Page } from "@playwright/test";
+import {
+  AXE_TAGS,
+  expect,
+  isDesktop,
+  isPhotoRequest,
+  photoBehind,
+  test,
+  THEME_KEY,
+  visiblePhoto,
+} from "./support";
 
 const emailField = (page: Page) => page.getByRole("textbox", { name: "E-posta" });
 // Password inputs have no ARIA role, so locate by name; the "structure" test
@@ -60,7 +23,6 @@ const themeAnnouncement = (page: Page) => page.locator('[aria-live="polite"]');
 // The form-level error Alert (Next.js also renders an empty role="alert" route announcer).
 const errorSummary = (page: Page) =>
   page.getByRole("alert").filter({ hasText: "Bazı alanlar eksik veya hatalı" });
-const isDesktop = (width: number) => width >= 1024;
 
 test.describe("structure", () => {
   test("has title, heading and labelled fields", async ({ page }) => {
@@ -308,9 +270,7 @@ test.describe("accessibility (axe, WCAG 2.x A/AA)", () => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto("/tr/register");
       await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
-      const results = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-        .analyze();
+      const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
       expect(results.violations).toEqual([]);
     });
   }

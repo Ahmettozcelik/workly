@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { PasswordInput } from "@/components/auth/password-input";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
@@ -166,32 +167,19 @@ export function RegistrationForm() {
           required
         >
           {(control) => (
-            <div className="relative">
-              <Input
-                ref={passwordRef}
-                type={showPassword ? "text" : "password"}
-                name="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  if (attempted) setErrors(validate(email, event.target.value));
-                }}
-                className="pe-14"
-                {...control}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((visible) => !visible)}
-                aria-pressed={showPassword}
-                aria-controls={control.id}
-                aria-label={tCommon("password.show")}
-                title={tCommon("password.show")}
-                className="absolute end-0.5 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-control text-fg-muted transition-colors hover:text-fg"
-              >
-                <EyeIcon crossed={showPassword} />
-              </button>
-            </div>
+            <PasswordInput
+              ref={passwordRef}
+              name="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (attempted) setErrors(validate(email, event.target.value));
+              }}
+              visible={showPassword}
+              onVisibleChange={setShowPassword}
+              {...control}
+            />
           )}
         </FormField>
 
@@ -228,24 +216,5 @@ export function RegistrationForm() {
         {t("signInPrompt")}
       </p>
     </div>
-  );
-}
-
-function EyeIcon({ crossed }: { crossed: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-      <circle cx="12" cy="12" r="3" />
-      {crossed && <path d="M4 4l16 16" />}
-    </svg>
   );
 }
