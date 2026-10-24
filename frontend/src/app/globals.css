@@ -29,7 +29,7 @@
   --accent: var(--wk-purple); /* fills, icons, large text */
   --accent-text: #5b4bd8; /* small purple text, links */
   --focus: var(--wk-purple);
-  --danger: #dc2626;
+  --danger: #b91c1c;
   --success: #15803d;
 
   --elevation-card: 0 1px 2px rgb(17 24 39 / 0.04),
