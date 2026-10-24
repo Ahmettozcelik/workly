@@ -1,0 +1,21 @@
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: workly-postgres
+    environment:
+      POSTGRES_DB: workly
+      POSTGRES_USER: workly
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workly -d workly"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
