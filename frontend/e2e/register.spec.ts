@@ -54,7 +54,9 @@ const emailField = (page: Page) => page.getByRole("textbox", { name: "E-posta" }
 const passwordField = (page: Page) => page.locator('input[name="password"]');
 const submitButton = (page: Page) => page.getByRole("button", { name: "Hesap oluştur" });
 const passwordToggle = (page: Page) => page.getByRole("button", { name: "Şifreyi göster" });
-const themeToggle = (page: Page) => page.getByRole("button", { name: /^Theme:/ });
+const themeToggle = (page: Page) => page.getByRole("button", { name: /^Tema:/ });
+// The toggle's polite live region (Next.js's route announcer is assertive).
+const themeAnnouncement = (page: Page) => page.locator('[aria-live="polite"]');
 // The form-level error Alert (Next.js also renders an empty role="alert" route announcer).
 const errorSummary = (page: Page) =>
   page.getByRole("alert").filter({ hasText: "Bazı alanlar eksik veya hatalı" });
@@ -199,7 +201,7 @@ test.describe("theme", () => {
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/register");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(themeToggle(page)).toHaveAccessibleName("Theme: Dark. Switch to System");
+    await expect(themeToggle(page)).toHaveAccessibleName("Tema: Koyu. Sistem temasına geç");
     if (isDesktop(testInfo.project.use.viewport!.width)) {
       expect(await visiblePhoto(page)).toBe("dark");
     }
@@ -211,22 +213,44 @@ test.describe("theme", () => {
     await page.goto("/register");
     const stored = () => page.evaluate((key) => localStorage.getItem(key), THEME_KEY);
 
-    await expect(themeToggle(page)).toHaveAccessibleName("Theme: System. Switch to Light");
+    await expect(themeToggle(page)).toHaveAccessibleName("Tema: Sistem. Açık temaya geç");
+    await expect(themeToggle(page)).toHaveAttribute("title", "Tema: Sistem. Açık temaya geç");
+    await expect(themeAnnouncement(page)).toHaveText("");
+
     await themeToggle(page).click();
-    await expect(themeToggle(page)).toHaveAccessibleName("Theme: Light. Switch to Dark");
+    await expect(themeToggle(page)).toHaveAccessibleName("Tema: Açık. Koyu temaya geç");
+    await expect(themeAnnouncement(page)).toHaveText("Açık tema seçildi");
     expect(await stored()).toBe("light");
 
     await themeToggle(page).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(themeToggle(page)).toHaveAccessibleName("Theme: Dark. Switch to System");
+    await expect(themeToggle(page)).toHaveAccessibleName("Tema: Koyu. Sistem temasına geç");
+    await expect(themeAnnouncement(page)).toHaveText("Koyu tema seçildi");
     expect(await stored()).toBe("dark");
     if (desktop) expect(await visiblePhoto(page)).toBe("dark");
 
     await themeToggle(page).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(themeToggle(page)).toHaveAccessibleName("Theme: System. Switch to Light");
+    await expect(themeToggle(page)).toHaveAccessibleName("Tema: Sistem. Açık temaya geç");
+    await expect(themeAnnouncement(page)).toHaveText("Sistem teması seçildi");
     expect(await stored()).toBeNull();
     if (desktop) expect(await visiblePhoto(page)).toBe("light");
+  });
+
+  test("toggle works with the keyboard (Enter and Space)", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto("/register");
+
+    await page.keyboard.press("Tab");
+    await expect(themeToggle(page)).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(themeToggle(page)).toHaveAccessibleName("Tema: Açık. Koyu temaya geç");
+    await expect(themeAnnouncement(page)).toHaveText("Açık tema seçildi");
+
+    await page.keyboard.press("Space");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(themeToggle(page)).toHaveAccessibleName("Tema: Koyu. Sistem temasına geç");
+    await expect(themeToggle(page)).toBeFocused();
   });
 });
 
