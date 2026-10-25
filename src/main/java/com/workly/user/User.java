@@ -88,6 +88,11 @@ public class User {
 		return emailVerified;
 	}
 
+	/** The member proved they own the email (EmailVerificationService). */
+	public void markEmailVerified() {
+		emailVerified = true;
+	}
+
 	public Instant getCreatedAt() {
 		return createdAt;
 	}

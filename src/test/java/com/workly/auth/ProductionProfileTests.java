@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.workly.MailTestConfiguration;
 import com.workly.TestcontainersConfiguration;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.Cookie;
@@ -26,15 +27,22 @@ import org.springframework.test.web.servlet.MockMvc;
  * The application under the "prod" profile, with valid settings: it starts,
  * both cookies are Secure and SameSite=Lax, and Boot's /error fallback carries
  * no details. The DB_* values only satisfy ProductionSettingsCheck; the
- * Testcontainers connection replaces them.
+ * Testcontainers connection replaces them. MAIL_* likewise: mails are recorded,
+ * never sent.
  */
 @SpringBootTest(properties = {
 		"DB_URL=jdbc:postgresql://replaced-by-testcontainers/workly",
 		"DB_USERNAME=replaced-by-testcontainers",
-		"DB_PASSWORD=replaced-by-testcontainers" })
+		"DB_PASSWORD=replaced-by-testcontainers",
+		"MAIL_HOST=smtp.invalid",
+		"MAIL_PORT=587",
+		"MAIL_USERNAME=unused",
+		"MAIL_PASSWORD=unused",
+		"MAIL_FROM=no-reply@workly.example",
+		"APP_BASE_URL=https://workly.example" })
 @ActiveProfiles("prod")
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({ TestcontainersConfiguration.class, MailTestConfiguration.class })
 class ProductionProfileTests {
 
 	@Autowired

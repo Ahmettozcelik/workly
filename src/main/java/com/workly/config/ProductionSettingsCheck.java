@@ -48,7 +48,47 @@ public class ProductionSettingsCheck implements EnvironmentPostProcessor, Ordere
 		if (!"true".equalsIgnoreCase(environment.getProperty("workly.session.cookie-secure", "").trim())) {
 			problems.add("workly.session.cookie-secure must be true (Secure cookies over HTTPS)");
 		}
+		mailProblems(environment, problems);
+		String baseUrl = environment.getProperty("APP_BASE_URL");
+		if (isBlank(baseUrl)) {
+			problems.add("APP_BASE_URL is not set");
+		}
+		else if (!baseUrl.startsWith("https://")) {
+			problems.add("APP_BASE_URL must be an https:// URL");
+		}
 		return problems;
+	}
+
+	private static void mailProblems(ConfigurableEnvironment environment, List<String> problems) {
+		for (String name : List.of("MAIL_HOST", "MAIL_USERNAME", "MAIL_PASSWORD")) {
+			if (isBlank(environment.getProperty(name))) {
+				problems.add(name + " is not set");
+			}
+		}
+		String port = environment.getProperty("MAIL_PORT");
+		if (isBlank(port)) {
+			problems.add("MAIL_PORT is not set");
+		}
+		else if (!isPort(port.trim())) {
+			problems.add("MAIL_PORT must be a port number");
+		}
+		String from = environment.getProperty("MAIL_FROM");
+		if (isBlank(from)) {
+			problems.add("MAIL_FROM is not set");
+		}
+		else if (!from.contains("@")) {
+			problems.add("MAIL_FROM must be an email address");
+		}
+	}
+
+	private static boolean isPort(String value) {
+		try {
+			int port = Integer.parseInt(value);
+			return port > 0 && port <= 65535;
+		}
+		catch (NumberFormatException ex) {
+			return false;
+		}
 	}
 
 	private static boolean isBlank(String value) {

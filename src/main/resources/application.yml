@@ -24,6 +24,18 @@ spring:
       # The SPRING_SESSION tables come from Flyway (V2__create_spring_session.sql).
       initialize-schema: never
 
+  mail:
+    # Dev: Mailpit from compose.yaml (SMTP 1025, mails visible on http://localhost:8025).
+    # Without it, sending fails and is logged; registration still works.
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    default-encoding: UTF-8
+    properties:
+      # Milliseconds: a slow or unreachable server cannot hold a request for long.
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
 server:
   # Client address and scheme from X-Forwarded-* when the request comes from a
   # trusted proxy (Tomcat's internal-proxies: localhost and private networks,
@@ -46,6 +58,20 @@ workly:
       register-address:
         max-requests: 10
         window: 1h
+    verification:
+      # The frontend origin the mailed link points to: {base-url}/{locale}/verify-email?token=…
+      base-url: ${APP_BASE_URL:http://localhost:3000}
+      token-lifetime: 24h
+      # Per signed-in member asking for a new link; every limit applies.
+      resend-limits:
+        - max-requests: 1
+          window: 1m
+        - max-requests: 5
+          window: 1h
+
+  mail:
+    # Sender address of Workly's mails (prod: MAIL_FROM).
+    from: ${MAIL_FROM:no-reply@workly.local}
 
   session:
     # Secure attribute of the session cookie (WORKLY_SESSION, HttpOnly, SameSite=Lax;
@@ -61,3 +87,8 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    mail:
+      # Mail is not needed to serve requests; an SMTP outage must not mark the
+      # app DOWN (readiness checks, the Full-stack E2E workflow).
+      enabled: false
