@@ -63,6 +63,22 @@ test("register → feed → logout → login → feed → logout", async ({ page
   await expect(page).toHaveURL("/tr/login");
 });
 
+test("pages get the frontend's security headers, /api keeps the backend's own", async ({ request }) => {
+  const page = (await request.get("/tr/login")).headers();
+  expect(page["content-security-policy"]).toBe("frame-ancestors 'none'");
+  expect(page["x-frame-options"]).toBe("DENY");
+  expect(page["x-powered-by"]).toBeUndefined();
+
+  // Spring Security's headers, passed through once by the /api rewrite.
+  const api = (await request.get("/api/auth/csrf")).headers();
+  expect(api["x-frame-options"]).toBe("DENY");
+  expect(api["x-content-type-options"]).toBe("nosniff");
+  expect(api["cache-control"]).toContain("no-store");
+  expect(api["content-security-policy"]).toBeUndefined();
+  expect(api["permissions-policy"]).toBeUndefined();
+  expect(api["x-powered-by"]).toBeUndefined();
+});
+
 test.describe("wrong password", () => {
   // The rejected sign-in is a 401 from the API; the browser logs it.
   test.use({ expectApiErrors: true });

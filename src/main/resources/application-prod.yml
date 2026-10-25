@@ -1,0 +1,35 @@
+# Production profile (SPRING_PROFILES_ACTIVE=prod), on top of application.yml.
+# Settings come from real environment variables or a secret manager, never
+# from a local .env file. ProductionSettingsCheck stops the startup, before
+# any database connection, when a required setting is missing or insecure.
+
+spring:
+  datasource:
+    # Required, no defaults: DB_URL (jdbc:postgresql://host:port/db), DB_USERNAME, DB_PASSWORD.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  web:
+    # Boot's /error fallback: status and a generic reason only. (Boot 4 name;
+    # the old server.error.* properties are no longer bound.)
+    error:
+      include-stacktrace: never
+      include-message: never
+      include-exception: false
+      include-binding-errors: never
+      include-path: never
+      whitelabel:
+        enabled: false
+
+server:
+  # X-Forwarded-* are trusted only from Tomcat's default internal-proxies
+  # (localhost and private networks). Review and restrict them
+  # (server.tomcat.remoteip.internal-proxies) before deployment.
+  forward-headers-strategy: native
+
+workly:
+  session:
+    # HTTPS only: WORKLY_SESSION and XSRF-TOKEN get the Secure attribute.
+    # ProductionSettingsCheck refuses to start if this is overridden.
+    cookie-secure: true

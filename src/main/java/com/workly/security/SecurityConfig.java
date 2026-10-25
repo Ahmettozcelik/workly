@@ -6,6 +6,7 @@ import com.workly.web.ApiError;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -78,10 +79,16 @@ class SecurityConfig {
 		response.getWriter().write(error.toJson());
 	}
 
-	/** Not HttpOnly: the frontend reads it and sends it back as X-XSRF-TOKEN. */
+	/**
+	 * Not HttpOnly: the frontend reads it and sends it back as X-XSRF-TOKEN.
+	 * SameSite=Lax like the session cookie, and Secure under the same switch
+	 * (workly.session.cookie-secure, always true in the prod profile).
+	 */
 	@Bean
-	CookieCsrfTokenRepository csrfTokenRepository() {
-		return CookieCsrfTokenRepository.withHttpOnlyFalse();
+	CookieCsrfTokenRepository csrfTokenRepository(@Value("${workly.session.cookie-secure}") boolean secure) {
+		CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+		repository.setCookieCustomizer(cookie -> cookie.secure(secure).sameSite("Lax"));
+		return repository;
 	}
 
 	@Bean
