@@ -1,34 +1,43 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { PasswordInput } from "@/components/auth/password-input";
+import { validateEmail } from "@/components/auth/validation";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { registrationCopy as copy } from "./copy";
+import { Link } from "@/i18n/navigation";
 
 // Prototype only: no API call, no account, no email. Validation rules here are
 // placeholders, not the final security policy.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MIN_LENGTH = 8;
 const SIMULATED_DELAY_MS = 1200;
 
-type FieldErrors = { email?: string; password?: string };
+// Message keys, translated at render: common.email.* / auth.register.password.*
+type FieldErrors = {
+  email?: "errorEmpty" | "errorInvalid";
+  password?: "errorEmpty" | "errorTooShort";
+};
 type Status = "editing" | "submitting" | "success";
 
 function validate(email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
-  const trimmed = email.trim();
-  if (!trimmed) errors.email = copy.form.email.errorEmpty;
-  else if (!EMAIL_PATTERN.test(trimmed)) errors.email = copy.form.email.errorInvalid;
-  if (!password) errors.password = copy.form.password.errorEmpty;
+  const emailError = validateEmail(email);
+  if (emailError) errors.email = emailError;
+  if (!password) errors.password = "errorEmpty";
   else if (password.length < PASSWORD_MIN_LENGTH) {
-    errors.password = copy.form.password.errorTooShort;
+    errors.password = "errorTooShort";
   }
   return errors;
 }
 
 export function RegistrationForm() {
+  const t = useTranslations("auth.register");
+  const tCommon = useTranslations("common");
+  const tPrototype = useTranslations("prototype");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -86,15 +95,15 @@ export function RegistrationForm() {
           tabIndex={-1}
           className="font-display text-3xl font-bold tracking-tight"
         >
-          {copy.success.title}
+          {t("success.title")}
         </h1>
-        <Alert variant="success">{copy.success.sentTo(email.trim())}</Alert>
-        <p className="text-fg-muted">{copy.success.nextSteps}</p>
+        <Alert variant="success">{t("success.sentTo", { email: email.trim() })}</Alert>
+        <p className="text-fg-muted">{t("success.nextSteps")}</p>
         <p className="border-t border-line pt-4 text-sm text-fg-muted">
-          {copy.success.prototypeNotice}
+          {tPrototype("registerNotice")}
         </p>
         <Button variant="secondary" size="lg" fullWidth onClick={handleUseDifferentEmail}>
-          {copy.success.useDifferentEmail}
+          {t("success.useDifferentEmail")}
         </Button>
       </div>
     );
@@ -104,15 +113,15 @@ export function RegistrationForm() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          {copy.form.title}
+          {t("title")}
         </h1>
-        <p className="text-fg-muted">{copy.form.subtitle}</p>
+        <p className="text-fg-muted">{t("subtitle")}</p>
       </div>
 
       <form noValidate onSubmit={handleSubmit} className="space-y-5">
         {attempted && hasErrors && (
-          <Alert variant="danger" title={copy.form.errorSummaryTitle}>
-            {copy.form.errorSummaryBody}
+          <Alert variant="danger" title={tCommon("errorSummary.title")}>
+            {tCommon("errorSummary.body")}
           </Alert>
         )}
 
@@ -120,13 +129,13 @@ export function RegistrationForm() {
           <span aria-hidden="true" className="text-danger">
             *
           </span>{" "}
-          {copy.form.requiredNote}
+          {tCommon("requiredNote")}
         </p>
 
         <FormField
-          label={copy.form.email.label}
-          hint={copy.form.email.hint}
-          error={errors.email}
+          label={tCommon("email.label")}
+          hint={t("email.hint")}
+          error={errors.email ? tCommon(`email.${errors.email}`) : undefined}
           required
         >
           {(control) => (
@@ -148,86 +157,72 @@ export function RegistrationForm() {
         </FormField>
 
         <FormField
-          label={copy.form.password.label}
-          hint={copy.form.password.hint}
-          error={errors.password}
+          label={tCommon("password.label")}
+          hint={t("password.hint", { min: PASSWORD_MIN_LENGTH })}
+          error={
+            errors.password
+              ? t(`password.${errors.password}`, { min: PASSWORD_MIN_LENGTH })
+              : undefined
+          }
           required
         >
           {(control) => (
-            <div className="relative">
-              <Input
-                ref={passwordRef}
-                type={showPassword ? "text" : "password"}
-                name="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  if (attempted) setErrors(validate(email, event.target.value));
-                }}
-                className="pe-14"
-                {...control}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((visible) => !visible)}
-                aria-pressed={showPassword}
-                aria-controls={control.id}
-                aria-label={copy.form.password.showToggle}
-                title={copy.form.password.showToggle}
-                className="absolute end-0.5 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-control text-fg-muted transition-colors hover:text-fg"
-              >
-                <EyeIcon crossed={showPassword} />
-              </button>
-            </div>
+            <PasswordInput
+              ref={passwordRef}
+              name="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (attempted) setErrors(validate(email, event.target.value));
+              }}
+              visible={showPassword}
+              onVisibleChange={setShowPassword}
+              {...control}
+            />
           )}
         </FormField>
 
         <Button type="submit" size="lg" fullWidth loading={status === "submitting"}>
-          {status === "submitting" ? copy.form.submitting : copy.form.submit}
+          {status === "submitting" ? t("submitting") : t("submit")}
         </Button>
 
+        {/* PLACEHOLDER: wording and documents need legal review (incl. KVKK)
+            before launch. The linked documents do not exist yet. */}
         <p className="text-sm text-fg-muted">
-          {copy.form.legal.before}
-          <a
-            href="#kullanim-kosullari"
-            className="font-medium text-accent-text underline underline-offset-2"
-          >
-            {copy.form.legal.terms}
-          </a>
-          {copy.form.legal.middle}
-          <a
-            href="#aydinlatma-metni"
-            className="font-medium text-accent-text underline underline-offset-2"
-          >
-            {copy.form.legal.privacy}
-          </a>
-          {copy.form.legal.after}
+          {t.rich("legal", {
+            terms: (chunks) => (
+              <a
+                href="#kullanim-kosullari"
+                className="font-medium text-accent-text underline underline-offset-2"
+              >
+                {chunks}
+              </a>
+            ),
+            privacy: (chunks) => (
+              <a
+                href="#aydinlatma-metni"
+                className="font-medium text-accent-text underline underline-offset-2"
+              >
+                {chunks}
+              </a>
+            ),
+          })}
         </p>
       </form>
 
       <p className="border-t border-line pt-5 text-center text-sm text-fg-muted">
-        {copy.form.signInPrompt}
+        {t.rich("signInPrompt", {
+          link: (chunks) => (
+            <Link
+              href="/login"
+              className="font-medium text-accent-text underline underline-offset-2"
+            >
+              {chunks}
+            </Link>
+          ),
+        })}
       </p>
     </div>
-  );
-}
-
-function EyeIcon({ crossed }: { crossed: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-      <circle cx="12" cy="12" r="3" />
-      {crossed && <path d="M4 4l16 16" />}
-    </svg>
   );
 }

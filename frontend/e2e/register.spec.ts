@@ -1,52 +1,15 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { test as base, expect, type Page } from "@playwright/test";
-
-// Every test fails if the page logs a console error or throws.
-const test = base.extend<{ consoleGuard: void }>({
-  consoleGuard: [
-    async ({ page }, use) => {
-      const problems: string[] = [];
-      page.on("console", (message) => {
-        if (message.type() === "error") problems.push(message.text());
-      });
-      page.on("pageerror", (error) => problems.push(error.message));
-      await use();
-      expect(problems, "console errors / page errors").toEqual([]);
-    },
-    { auto: true },
-  ],
-});
-
-const THEME_KEY = "workly-theme";
-
-// Photos are identified by their bytes, not by (hashed) URLs or DOM order.
-const sha256 = (data: Buffer) => createHash("sha256").update(data).digest("hex");
-const PHOTO_DIR = join(__dirname, "../src/app/register/images");
-const PHOTO_BY_HASH: Record<string, "light" | "dark"> = {
-  [sha256(readFileSync(join(PHOTO_DIR, "Workly-Light.jpg")))]: "light",
-  [sha256(readFileSync(join(PHOTO_DIR, "Workly-Dark.jpg")))]: "dark",
-};
-// The panel photos load through the Next.js optimiser: /_next/image?url=<asset>&...
-const isPhotoRequest = (url: string) => new URL(url).pathname === "/_next/image";
-
-// Fetches the original asset behind an optimiser URL and names it by its bytes.
-async function photoBehind(page: Page, optimiserUrl: string) {
-  const asset = new URL(optimiserUrl, page.url()).searchParams.get("url");
-  const response = await page.request.get(asset ?? "");
-  return PHOTO_BY_HASH[sha256(await response.body())] ?? `unknown asset: ${asset}`;
-}
-
-// Which photo the visible brand-panel layer shows (exactly one layer is visible).
-async function visiblePhoto(page: Page) {
-  const layer = page.locator('aside [style*="image-set"]').filter({ visible: true });
-  await expect(layer).toHaveCount(1);
-  const style = (await layer.getAttribute("style")) ?? "";
-  const firstUrl = style.match(/url\("([^"]+)"\)/)?.[1] ?? "";
-  return photoBehind(page, firstUrl);
-}
+import type { Page } from "@playwright/test";
+import {
+  AXE_TAGS,
+  expect,
+  isDesktop,
+  isPhotoRequest,
+  photoBehind,
+  test,
+  THEME_KEY,
+  visiblePhoto,
+} from "./support";
 
 const emailField = (page: Page) => page.getByRole("textbox", { name: "E-posta" });
 // Password inputs have no ARIA role, so locate by name; the "structure" test
@@ -60,11 +23,10 @@ const themeAnnouncement = (page: Page) => page.locator('[aria-live="polite"]');
 // The form-level error Alert (Next.js also renders an empty role="alert" route announcer).
 const errorSummary = (page: Page) =>
   page.getByRole("alert").filter({ hasText: "Bazı alanlar eksik veya hatalı" });
-const isDesktop = (width: number) => width >= 1024;
 
 test.describe("structure", () => {
   test("has title, heading and labelled fields", async ({ page }) => {
-    await page.goto("/register");
+    await page.goto("/tr/register");
     await expect(page).toHaveTitle("Kayıt ol · Workly");
     await expect(page.getByRole("heading", { level: 1, name: "Workly'ye katıl" })).toBeVisible();
     await expect(emailField(page)).toHaveAttribute("type", "email");
@@ -75,15 +37,24 @@ test.describe("structure", () => {
     await expect(passwordField(page)).toHaveAttribute("autocomplete", "new-password");
     await expect(passwordField(page)).toHaveAccessibleDescription("En az 8 karakter.");
     await expect(submitButton(page)).toBeVisible();
-    // Sign-in prompt is plain text for now (no login page yet).
+    // Sign-in prompt: only "Giriş yap" is a link, to the same-language login page.
     await expect(page.getByText("Zaten hesabın var mı? Giriş yap")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Giriş yap/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Giriş yap" })).toHaveAttribute("href", "/tr/login");
+  });
+
+  test("the sign-in link opens the login page", async ({ page }) => {
+    await page.goto("/tr/register");
+    await page.getByRole("link", { name: "Giriş yap" }).click();
+    await expect(page).toHaveURL("/tr/login");
+    await expect(page.getByRole("heading", { level: 1, name: "Tekrar hoş geldin" })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "tr");
+    // Console errors fail the test through the shared consoleGuard fixture.
   });
 });
 
 test.describe("validation", () => {
   test("empty submit shows errors and focuses the email field", async ({ page }) => {
-    await page.goto("/register");
+    await page.goto("/tr/register");
     await submitButton(page).click();
 
     await expect(errorSummary(page)).toBeVisible();
@@ -95,7 +66,7 @@ test.describe("validation", () => {
   });
 
   test("invalid email and short password show specific messages", async ({ page }) => {
-    await page.goto("/register");
+    await page.goto("/tr/register");
     await emailField(page).fill("ali@");
     await passwordField(page).fill("kisa");
     await submitButton(page).click();
@@ -106,7 +77,7 @@ test.describe("validation", () => {
   });
 
   test("errors clear live after the inputs are corrected", async ({ page }) => {
-    await page.goto("/register");
+    await page.goto("/tr/register");
     await submitButton(page).click();
     await expect(errorSummary(page)).toBeVisible();
 
@@ -123,7 +94,7 @@ test.describe("validation", () => {
 
 test.describe("password toggle", () => {
   test("shows and hides the password", async ({ page }) => {
-    await page.goto("/register");
+    await page.goto("/tr/register");
     await passwordField(page).fill("guvenli-sifre");
 
     await expect(passwordToggle(page)).toHaveAttribute("aria-pressed", "false");
@@ -139,7 +110,7 @@ test.describe("password toggle", () => {
 
 test.describe("submission (prototype)", () => {
   test("shows loading, then success, and returns with the email kept", async ({ page }) => {
-    await page.goto("/register");
+    await page.goto("/tr/register");
     await emailField(page).fill("ali.yilmaz@example.com");
     await passwordField(page).fill("guvenli-sifre");
     await submitButton(page).click();
@@ -167,8 +138,9 @@ test.describe("submission (prototype)", () => {
 
 test.describe("keyboard", () => {
   test("Tab order follows the visual order", async ({ page }) => {
-    await page.goto("/register");
+    await page.goto("/tr/register");
     const expected = [
+      page.getByRole("link", { name: "English" }),
       themeToggle(page),
       emailField(page),
       passwordField(page),
@@ -176,6 +148,7 @@ test.describe("keyboard", () => {
       submitButton(page),
       page.getByRole("link", { name: "Kullanım Koşulları" }),
       page.getByRole("link", { name: "Aydınlatma Metni" }),
+      page.getByRole("link", { name: "Giriş yap" }),
     ];
     for (const target of expected) {
       await page.keyboard.press("Tab");
@@ -188,7 +161,7 @@ test.describe("theme", () => {
   test("follows the OS on first visit and shows the matching photo", async ({ page }, testInfo) => {
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
-      await page.goto("/register");
+      await page.goto("/tr/register");
       await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
       if (isDesktop(testInfo.project.use.viewport!.width)) {
         expect(await visiblePhoto(page)).toBe(scheme);
@@ -199,7 +172,7 @@ test.describe("theme", () => {
   test("a stored preference wins over the OS setting", async ({ page }, testInfo) => {
     await page.addInitScript((key) => localStorage.setItem(key, "dark"), THEME_KEY);
     await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/register");
+    await page.goto("/tr/register");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(themeToggle(page)).toHaveAccessibleName("Tema: Koyu. Sistem temasına geç");
     if (isDesktop(testInfo.project.use.viewport!.width)) {
@@ -210,7 +183,7 @@ test.describe("theme", () => {
   test("toggle cycles System → Light → Dark → System and persists", async ({ page }, testInfo) => {
     const desktop = isDesktop(testInfo.project.use.viewport!.width);
     await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/register");
+    await page.goto("/tr/register");
     const stored = () => page.evaluate((key) => localStorage.getItem(key), THEME_KEY);
 
     await expect(themeToggle(page)).toHaveAccessibleName("Tema: Sistem. Açık temaya geç");
@@ -239,8 +212,10 @@ test.describe("theme", () => {
 
   test("toggle works with the keyboard (Enter and Space)", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/register");
+    await page.goto("/tr/register");
 
+    // The language switcher comes first in the header.
+    await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
     await expect(themeToggle(page)).toBeFocused();
     await page.keyboard.press("Enter");
@@ -255,10 +230,10 @@ test.describe("theme", () => {
 });
 
 test.describe("responsive", () => {
-  for (const width of [375, 768, 1280]) {
+  for (const width of [320, 375, 768, 1280]) {
     test(`no horizontal overflow at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto("/register");
+      await page.goto("/tr/register");
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
@@ -275,7 +250,7 @@ test.describe("responsive", () => {
         if (isPhotoRequest(request.url())) photoRequests.push(request.url());
       });
       await page.emulateMedia({ colorScheme: scheme });
-      await page.goto("/register");
+      await page.goto("/tr/register");
       await page.waitForLoadState("networkidle");
 
       await expect(page.locator("aside")).toBeVisible();
@@ -293,7 +268,7 @@ test.describe("responsive", () => {
       await page.setViewportSize({ width, height: 800 });
       for (const scheme of ["light", "dark"] as const) {
         await page.emulateMedia({ colorScheme: scheme });
-        await page.goto("/register");
+        await page.goto("/tr/register");
         await page.waitForLoadState("networkidle");
         await expect(page.locator("aside")).toBeHidden();
       }
@@ -306,11 +281,9 @@ test.describe("accessibility (axe, WCAG 2.x A/AA)", () => {
   for (const scheme of ["light", "dark"] as const) {
     test(`no violations in the ${scheme} theme`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
-      await page.goto("/register");
+      await page.goto("/tr/register");
       await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
-      const results = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-        .analyze();
+      const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
       expect(results.violations).toEqual([]);
     });
   }

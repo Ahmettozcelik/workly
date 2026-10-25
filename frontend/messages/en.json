@@ -1,0 +1,109 @@
+{
+  "common": {
+    "appTitle": "Workly",
+    "appDescription": "Your professional journey starts here.",
+    "requiredNote": "Required field",
+    "email": {
+      "label": "Email",
+      "errorEmpty": "Enter your email address.",
+      "errorInvalid": "Enter a valid email address."
+    },
+    "password": {
+      "label": "Password",
+      "show": "Show password"
+    },
+    "errorSummary": {
+      "title": "Some fields are missing or need attention.",
+      "body": "Please fix the marked fields and try again."
+    }
+  },
+  "prototype": {
+    "badge": "Prototype",
+    "registerNotice": "Prototype: No real account was created and no email was sent.",
+    "loginNotice": "Prototype: No real session has been created."
+  },
+  "auth": {
+    "brand": {
+      "headline": "Your professional journey starts here.",
+      "points": {
+        "oneAccount": "One personal account. With you throughout your career.",
+        "workEmail": "You can add your work email later. No separate account needed.",
+        "verify": "Once you verify your email, you can post, apply for jobs, and send messages."
+      }
+    },
+    "register": {
+      "meta": {
+        "title": "Sign up",
+        "description": "Get started with one personal account."
+      },
+      "title": "Join Workly",
+      "subtitle": "Get started with one personal account.",
+      "email": {
+        "hint": "Use your personal email address. You can add your work email later to link your account to your company."
+      },
+      "password": {
+        "hint": "Use at least {min} characters.",
+        "errorEmpty": "Create a password.",
+        "errorTooShort": "Your password must be at least {min} characters."
+      },
+      "submit": "Create account",
+      "submitting": "Creating account",
+      "legal": "By continuing, you agree to the <terms>Terms of Use</terms> and acknowledge that you have read our <privacy>Privacy Notice</privacy>.",
+      "signInPrompt": "Already have an account? <link>Sign in</link>",
+      "success": {
+        "title": "Check your email",
+        "sentTo": "We've sent a verification link to {email}.",
+        "nextSteps": "Once you verify your email, you can post, apply for jobs, and send messages. You can complete your profile anytime.",
+        "useDifferentEmail": "Use a different email"
+      }
+    },
+    "login": {
+      "meta": {
+        "title": "Sign in",
+        "description": "Sign in with your personal account."
+      },
+      "title": "Welcome back",
+      "subtitle": "Sign in with your personal account.",
+      "password": {
+        "errorEmpty": "Enter your password."
+      },
+      "forgotPassword": "Forgot your password?",
+      "forgotPasswordSoon": "Coming soon",
+      "submit": "Sign in",
+      "submitting": "Signing in",
+      "failure": {
+        "title": "Couldn't sign in",
+        "body": "The email or password you entered is incorrect. Please try again."
+      },
+      "success": {
+        "title": "Sign-in preview complete",
+        "usedEmail": "This preview used {email}.",
+        "back": "Back to sign in"
+      },
+      "registerPrompt": "Don't have an account? <link>Sign up</link>"
+    }
+  },
+  "theme": {
+    "label": "Theme: {current}. {switchTo}",
+    "name": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "switchTo": {
+      "system": "Switch to system theme",
+      "light": "Switch to light theme",
+      "dark": "Switch to dark theme"
+    },
+    "selected": {
+      "system": "System theme selected",
+      "light": "Light theme selected",
+      "dark": "Dark theme selected"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you're looking for may have moved or never existed.",
+    "home": "Back to home"
+  }
+}

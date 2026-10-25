@@ -21,7 +21,7 @@ const isProduction = process.env.NODE_ENV === "production";
 export function generateMetadata(): Metadata {
   if (isProduction) notFound();
   return {
-    title: "Design system · Workly",
+    title: "Design system",
     robots: { index: false, follow: false },
   };
 }

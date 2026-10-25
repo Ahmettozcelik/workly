@@ -1,28 +1,8 @@
-import type { Metadata } from "next";
-import { ThemeScript } from "@/components/theme/theme-script";
-import { ThemeSync } from "@/components/theme/theme-sync";
-import { bricolage, inter } from "@/lib/fonts";
-import "./globals.css";
+import type { ReactNode } from "react";
 
-export const metadata: Metadata = {
-  title: "Workly",
-};
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  return (
-    // suppressHydrationWarning: ThemeScript sets data-theme before hydration.
-    <html
-      lang="tr"
-      className={`${inter.variable} ${bricolage.variable}`}
-      suppressHydrationWarning
-    >
-      <head>
-        <ThemeScript />
-      </head>
-      <body>
-        <ThemeSync />
-        {children}
-      </body>
-    </html>
-  );
+// Pass-through root layout: <html> and <body> come from [locale]/layout.tsx,
+// or from app/not-found.tsx for unmatched URLs. Without a root layout above
+// [locale], Next.js would serve unmatched URLs a bare 404 (no lang or styles).
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return children;
 }

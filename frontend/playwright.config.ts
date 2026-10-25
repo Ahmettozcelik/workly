@@ -10,6 +10,9 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // Turkish browser by default, so unprefixed URLs resolve to /tr. Tests for
+    // other languages set the locale explicitly.
+    locale: "tr-TR",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -26,7 +29,10 @@ export default defineConfig({
   // Always test a fresh production build (port 3100 avoids the dev server on 3000).
   webServer: {
     command: `npm run build && npx next start -p ${PORT}`,
-    url: `http://localhost:${PORT}/register`,
+    url: `http://localhost:${PORT}/tr/register`,
+    // Production builds require SITE_URL; the tests expect absolute canonical
+    // and hreflang URLs on the test server's own origin.
+    env: { SITE_URL: `http://localhost:${PORT}` },
     reuseExistingServer: false,
     timeout: 180_000,
   },

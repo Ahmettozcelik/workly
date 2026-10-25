@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 import {
   nextPreference,
@@ -9,29 +10,15 @@ import {
   type ThemePreference,
 } from "@/lib/theme";
 
-// Turkish (the default locale); moves to next-intl messages with i18n.
-// Full phrases per mode, since Turkish suffixes depend on the word.
-const NAMES: Record<ThemePreference, string> = {
-  system: "Sistem",
-  light: "Açık",
-  dark: "Koyu",
-};
-const SWITCH_TO: Record<ThemePreference, string> = {
-  system: "Sistem temasına geç",
-  light: "Açık temaya geç",
-  dark: "Koyu temaya geç",
-};
-const SELECTED: Record<ThemePreference, string> = {
-  system: "Sistem teması seçildi",
-  light: "Açık tema seçildi",
-  dark: "Koyu tema seçildi",
-};
+// Copy lives in messages under "theme": full phrases per mode, since Turkish
+// suffixes depend on the word.
 
 // The server cannot know the stored preference, so hydration starts from
 // "system" and the icon updates right after hydration (page colours do not).
 const getServerPreference = (): ThemePreference => "system";
 
 export function ThemeToggle() {
+  const t = useTranslations("theme");
   const preference = useSyncExternalStore(
     subscribePreference,
     readPreference,
@@ -40,11 +27,14 @@ export function ThemeToggle() {
   const [announcement, setAnnouncement] = useState("");
 
   const next = nextPreference(preference);
-  const label = `Tema: ${NAMES[preference]}. ${SWITCH_TO[next]}`;
+  const label = t("label", {
+    current: t(`name.${preference}`),
+    switchTo: t(`switchTo.${next}`),
+  });
 
   function handleClick() {
     setPreference(next);
-    setAnnouncement(SELECTED[next]);
+    setAnnouncement(t(`selected.${next}`));
   }
 
   return (
