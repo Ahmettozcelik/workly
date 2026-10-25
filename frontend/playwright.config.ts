@@ -27,8 +27,11 @@ export default defineConfig({
     },
   ],
   // Always test a fresh production build (port 3100 avoids the dev server on 3000).
+  // E2E_PREBUILT=1 (CI) starts the build made in an earlier step instead.
   webServer: {
-    command: `npm run build && npx next start -p ${PORT}`,
+    command: process.env.E2E_PREBUILT === "1"
+      ? `npx next start -p ${PORT}`
+      : `npm run build && npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/tr/register`,
     // Production builds require SITE_URL; the tests expect absolute canonical
     // and hreflang URLs on the test server's own origin.

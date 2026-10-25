@@ -1,0 +1,64 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["frontend/**", ".github/workflows/frontend-ci.yml"]
+  push:
+    branches: [main]
+    paths: ["frontend/**", ".github/workflows/frontend-ci.yml"]
+
+# A new push to a PR cancels its previous run; runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # Public test origin, not a secret: canonical and hreflang URLs are
+      # written at build time and the E2E tests expect the test server's own.
+      SITE_URL: http://localhost:3100
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # Route types (.next/types) must exist before tsc in a clean checkout.
+      - run: npx next typegen && npx tsc --noEmit
+
+      - run: npm run build
+
+      # Both Playwright projects (Desktop Chrome, Pixel 7) run on Chromium.
+      - run: npx playwright install --with-deps chromium
+
+      # E2E_PREBUILT: start the build above instead of building again.
+      - run: npm run test:e2e
+        env:
+          E2E_PREBUILT: "1"
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 14
