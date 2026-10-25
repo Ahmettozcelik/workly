@@ -1,4 +1,3 @@
-
 spring:
   application:
     name: workly
@@ -9,5 +8,33 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/workly
     username: workly
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
+
+  jpa:
+    # Flyway owns the schema (src/main/resources/db/migration); Hibernate only checks it.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  session:
+    # Idle timeout; the session row expires in PostgreSQL after it.
+    timeout: 12h
+    jdbc:
+      # The SPRING_SESSION tables come from Flyway (V2__create_spring_session.sql).
+      initialize-schema: never
+
+workly:
+  session:
+    # Session cookie (WORKLY_SESSION, HttpOnly, SameSite=Lax; see SessionCookieConfig).
+    # Must be true in production (HTTPS). False only for local http://localhost.
+    cookie-secure: ${SESSION_COOKIE_SECURE:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
