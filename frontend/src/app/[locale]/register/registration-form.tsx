@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { PasswordInput } from "@/components/auth/password-input";
+import { validateEmail } from "@/components/auth/validation";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
@@ -10,7 +11,6 @@ import { Input } from "@/components/ui/input";
 
 // Prototype only: no API call, no account, no email. Validation rules here are
 // placeholders, not the final security policy.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MIN_LENGTH = 8;
 const SIMULATED_DELAY_MS = 1200;
 
@@ -23,9 +23,8 @@ type Status = "editing" | "submitting" | "success";
 
 function validate(email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
-  const trimmed = email.trim();
-  if (!trimmed) errors.email = "errorEmpty";
-  else if (!EMAIL_PATTERN.test(trimmed)) errors.email = "errorInvalid";
+  const emailError = validateEmail(email);
+  if (emailError) errors.email = emailError;
   if (!password) errors.password = "errorEmpty";
   else if (password.length < PASSWORD_MIN_LENGTH) {
     errors.password = "errorTooShort";

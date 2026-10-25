@@ -209,7 +209,7 @@ test.describe("English register page", () => {
 
 test.describe("locale detection", () => {
   test("a request without a language preference goes to Turkish", async ({ request }) => {
-    for (const [from, to] of [["/register", "/tr/register"], ["/", "/tr"]]) {
+    for (const [from, to] of [["/register", "/tr/register"], ["/login", "/tr/login"], ["/", "/tr"]]) {
       const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), from).toBe(307);
       expect(response.headers()["location"], from).toBe(to);
@@ -217,15 +217,17 @@ test.describe("locale detection", () => {
     }
   });
 
-  for (const [browserLocale, expected] of [
-    ["en-US", "/en/register"],
-    ["tr-TR", "/tr/register"],
-    ["de-DE", "/tr/register"],
+  for (const [browserLocale, from, expected] of [
+    ["en-US", "/register", "/en/register"],
+    ["tr-TR", "/register", "/tr/register"],
+    ["de-DE", "/register", "/tr/register"],
+    ["en-US", "/login", "/en/login"],
+    ["tr-TR", "/login", "/tr/login"],
   ] as const) {
-    test(`a ${browserLocale} browser opening /register lands on ${expected}`, async ({ browser, baseURL }) => {
+    test(`a ${browserLocale} browser opening ${from} lands on ${expected}`, async ({ browser, baseURL }) => {
       const context = await browser.newContext({ locale: browserLocale, baseURL });
       const page = await context.newPage();
-      await page.goto("/register");
+      await page.goto(from);
       await expect(page).toHaveURL(expected);
       await expect(page.locator("html")).toHaveAttribute("lang", expected.slice(1, 3));
       await context.close();
@@ -239,6 +241,8 @@ test.describe("metadata", () => {
     { path: "/en", lang: "en", title: "Workly", description: "Your professional journey starts here.", unprefixed: "/" },
     { path: "/tr/register", lang: "tr", title: "Kayıt ol · Workly", description: "Tek bir kişisel hesapla başla.", unprefixed: "/register" },
     { path: "/en/register", lang: "en", title: "Sign up · Workly", description: "Get started with one personal account.", unprefixed: "/register" },
+    { path: "/tr/login", lang: "tr", title: "Giriş yap · Workly", description: "Kişisel hesabınla giriş yap.", unprefixed: "/login" },
+    { path: "/en/login", lang: "en", title: "Sign in · Workly", description: "Sign in with your personal account.", unprefixed: "/login" },
   ];
 
   for (const { path, lang, title, description, unprefixed } of pages) {
@@ -267,7 +271,7 @@ test.describe("metadata", () => {
   }
 
   test("pages and redirects send no automatic Link (hreflang) header", async ({ request }) => {
-    for (const path of ["/tr", "/en", "/tr/register", "/en/register", "/register", "/"]) {
+    for (const path of ["/tr", "/en", "/tr/register", "/en/register", "/tr/login", "/en/login", "/register", "/login", "/"]) {
       const response = await request.get(path, { maxRedirects: 0 });
       expect(response.headers()["link"], path).toBeUndefined();
     }

@@ -19,7 +19,8 @@
   },
   "prototype": {
     "badge": "Prototip",
-    "registerNotice": "Prototip: Gerçek bir hesap oluşturulmadı ve e-posta gönderilmedi."
+    "registerNotice": "Prototip: Gerçek bir hesap oluşturulmadı ve e-posta gönderilmedi.",
+    "loginNotice": "Prototip: Gerçek bir oturum oluşturulmadı."
   },
   "auth": {
     "brand": {
@@ -55,6 +56,31 @@
         "nextSteps": "E-postanı doğruladıktan sonra paylaşım yapabilir, iş ilanlarına başvurabilir ve mesajlaşabilirsin. Profilini dilediğin zaman tamamlayabilirsin.",
         "useDifferentEmail": "Farklı bir e-posta kullan"
       }
+    },
+    "login": {
+      "meta": {
+        "title": "Giriş yap",
+        "description": "Kişisel hesabınla giriş yap."
+      },
+      "title": "Tekrar hoş geldin",
+      "subtitle": "Kişisel hesabınla giriş yap.",
+      "password": {
+        "errorEmpty": "Şifreni gir."
+      },
+      "forgotPassword": "Şifreni mi unuttun?",
+      "forgotPasswordSoon": "Yakında",
+      "submit": "Giriş yap",
+      "submitting": "Giriş yapılıyor",
+      "failure": {
+        "title": "Giriş yapılamadı",
+        "body": "E-posta adresi veya şifre hatalı. Lütfen tekrar dene."
+      },
+      "success": {
+        "title": "Giriş önizlemesi tamamlandı",
+        "usedEmail": "Bu önizlemede {email} kullanıldı.",
+        "back": "Giriş ekranına dön"
+      },
+      "registerPrompt": "Hesabın yok mu? <link>Kayıt ol</link>"
     }
   },
   "theme": {
