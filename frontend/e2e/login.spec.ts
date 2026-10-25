@@ -1,9 +1,17 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { AXE_TAGS, expect, isDesktop, test } from "./support";
+import {
+  AXE_TAGS,
+  expect,
+  isDesktop,
+  MOCK_CSRF_TOKEN,
+  mockAuthApi,
+  mockUser,
+  problem,
+  test,
+} from "./support";
 
-// The prototype treats this address as a failed sign-in (see login-form.tsx).
-const FAILURE_EMAIL = "fail@example.com";
+const INVALID_CREDENTIALS = problem(401, "INVALID_CREDENTIALS");
 
 const COPY = {
   tr: {
@@ -24,10 +32,8 @@ const COPY = {
     passwordEmpty: "Şifreni gir.",
     failureTitle: "Giriş yapılamadı",
     failureBody: "E-posta adresi veya şifre hatalı. Lütfen tekrar dene.",
-    successTitle: "Giriş önizlemesi tamamlandı",
-    usedEmail: (email: string) => `Bu önizlemede ${email} kullanıldı.`,
-    notice: "Prototip: Gerçek bir oturum oluşturulmadı.",
-    back: "Giriş ekranına dön",
+    genericTitle: "İşlemini şu anda tamamlayamadık",
+    feedPath: "/tr/feed",
     theme: /^Tema:/,
     otherLanguage: "English",
   },
@@ -49,10 +55,8 @@ const COPY = {
     passwordEmpty: "Enter your password.",
     failureTitle: "Couldn't sign in",
     failureBody: "The email or password you entered is incorrect. Please try again.",
-    successTitle: "Sign-in preview complete",
-    usedEmail: (email: string) => `This preview used ${email}.`,
-    notice: "Prototype: No real session has been created.",
-    back: "Back to sign in",
+    genericTitle: "We couldn't complete that right now",
+    feedPath: "/en/feed",
     theme: /^Theme:/,
     otherLanguage: "Türkçe",
   },
@@ -137,6 +141,12 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
     });
 
     test("has no minimum password length and submits once on Enter", async ({ page }) => {
+      let release = () => {};
+      const calls = await mockAuthApi(
+        page,
+        { login: [{ status: 200, body: mockUser(lang) }] },
+        new Promise<void>((resolve) => (release = resolve)),
+      );
       await page.goto(c.path);
       await emailField(page, c).fill("ali.yilmaz@example.com");
       await passwordField(page).fill("abc");
@@ -147,30 +157,37 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
       await expect(busy).toHaveAttribute("aria-busy", "true");
       // A second attempt while busy is ignored.
       await passwordField(page).press("Enter");
-      await expect(page.getByRole("heading", { level: 1, name: c.successTitle })).toBeVisible();
+      release();
+      await expect(page).toHaveURL(c.feedPath);
+      expect(calls.filter((call) => call.path === "/api/auth/login")).toHaveLength(1);
     });
 
-    test("success shows the preview, notice and returns to the form", async ({ page }) => {
+    test("success signs in through the API and opens the feed", async ({ page }) => {
+      const calls = await mockAuthApi(page, { login: [{ status: 200, body: mockUser(lang) }] });
       await page.goto(c.path);
       await emailField(page, c).fill(" ali.yilmaz@example.com ");
       await passwordField(page).fill("secure-password");
       await submitButton(page, c).click();
 
-      await expect(page.getByRole("heading", { level: 1, name: c.successTitle })).toBeFocused();
-      await expect(page.getByRole("status")).toContainText(c.usedEmail("ali.yilmaz@example.com"));
-      await expect(page.getByText(c.notice)).toBeVisible();
-
-      await page.getByRole("button", { name: c.back }).click();
-      await expect(page.getByRole("heading", { level: 1, name: c.heading })).toBeVisible();
-      // Kept; <input type="email"> itself strips the surrounding spaces.
-      await expect(emailField(page, c)).toHaveValue("ali.yilmaz@example.com");
-      await expect(passwordField(page)).toHaveValue("");
-      await expect(emailField(page, c)).toBeFocused();
+      await expect(page).toHaveURL(c.feedPath);
+      await expect(page.locator("html")).toHaveAttribute("lang", lang);
+      // A CSRF token is fetched first, then sent with the trimmed email.
+      expect(calls.map((call) => call.path)).toEqual(["/api/auth/csrf", "/api/auth/login"]);
+      expect(calls[1]).toEqual({
+        path: "/api/auth/login",
+        csrfToken: MOCK_CSRF_TOKEN,
+        body: { email: "ali.yilmaz@example.com", password: "secure-password" },
+      });
     });
+  });
+
+  test.describe(`login API errors (${lang})`, () => {
+    test.use({ locale: lang === "tr" ? "tr-TR" : "en-US", expectApiErrors: true });
 
     test("failure is generic, keeps the email and resets the password", async ({ page }) => {
+      await mockAuthApi(page, { login: [INVALID_CREDENTIALS] });
       await page.goto(c.path);
-      await emailField(page, c).fill(FAILURE_EMAIL);
+      await emailField(page, c).fill("ali.yilmaz@example.com");
       await passwordField(page).fill("wrong-password");
       await passwordToggle(page, c).click();
       await expect(passwordField(page)).toHaveAttribute("type", "text");
@@ -182,18 +199,80 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
       // No field-level hint about which part was wrong.
       await expect(emailField(page, c)).not.toHaveAttribute("aria-invalid", "true");
       await expect(passwordField(page)).not.toHaveAttribute("aria-invalid", "true");
-      await expect(emailField(page, c)).toHaveValue(FAILURE_EMAIL);
+      await expect(emailField(page, c)).toHaveValue("ali.yilmaz@example.com");
       await expect(passwordField(page)).toHaveValue("");
       await expect(passwordField(page)).toHaveAttribute("type", "password");
       await expect(passwordToggle(page, c)).toHaveAttribute("aria-pressed", "false");
       await expect(passwordField(page)).toBeFocused();
 
-      // The alert goes away on the next attempt.
+      // The alert goes away while the next attempt is in flight (held here),
+      // and comes back as a new alert, so it is announced again.
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => (release = resolve));
+      await page.route("**/api/auth/login", async (route) => {
+        await held;
+        await route.fulfill({
+          status: 401,
+          contentType: "application/problem+json",
+          body: JSON.stringify(INVALID_CREDENTIALS.body),
+        });
+      });
       await passwordField(page).fill("another-try");
       await submitButton(page, c).click();
       await expect(failure).toHaveCount(0);
+      release();
       await expect(alertWith(page, c.failureTitle)).toBeVisible();
     });
+
+    for (const [label, reply] of [
+      ["a server error", problem(500, "INTERNAL_ERROR")],
+      ["a network failure", "abort"],
+    ] as const) {
+      test(`${label} shows a generic error and keeps the input`, async ({ page }) => {
+        await mockAuthApi(page, { login: [reply] });
+        await page.goto(c.path);
+        await emailField(page, c).fill("ali.yilmaz@example.com");
+        await passwordField(page).fill("secure-password");
+        await submitButton(page, c).click();
+
+        await expect(alertWith(page, c.genericTitle)).toBeVisible();
+        await expect(alertWith(page, c.failureTitle)).toHaveCount(0);
+        await expect(emailField(page, c)).toHaveValue("ali.yilmaz@example.com");
+        await expect(passwordField(page)).toHaveValue("secure-password");
+        await expect(submitButton(page, c)).toBeEnabled();
+        expect(new URL(page.url()).pathname).toBe(c.path);
+      });
+    }
+
+    for (const scheme of ["light", "dark"] as const) {
+      test(`has no axe violations in the ${scheme} theme (initial, error, failure, server error)`, async ({ page }) => {
+        await mockAuthApi(page, { login: [INVALID_CREDENTIALS, problem(500, "INTERNAL_ERROR")] });
+        await page.emulateMedia({ colorScheme: scheme });
+        await page.goto(c.path);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
+        const scan = async () => (await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze()).violations;
+
+        expect(await scan()).toEqual([]);
+        await submitButton(page, c).click();
+        await expect(alertWith(page, c.summary)).toBeVisible();
+        expect(await scan()).toEqual([]);
+
+        await emailField(page, c).fill("ali.yilmaz@example.com");
+        await passwordField(page).fill("wrong-password");
+        await submitButton(page, c).click();
+        await expect(alertWith(page, c.failureTitle)).toBeVisible();
+        expect(await scan()).toEqual([]);
+
+        await passwordField(page).fill("secure-password");
+        await submitButton(page, c).click();
+        await expect(alertWith(page, c.genericTitle)).toBeVisible();
+        expect(await scan()).toEqual([]);
+      });
+    }
+  });
+
+  test.describe(`login keyboard (${lang})`, () => {
+    test.use({ locale: lang === "tr" ? "tr-TR" : "en-US" });
 
     test("Tab order follows the visual order", async ({ page }) => {
       await page.goto(c.path);
@@ -212,32 +291,6 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
         await expect(target).toBeFocused();
       }
     });
-
-    for (const scheme of ["light", "dark"] as const) {
-      test(`has no axe violations in the ${scheme} theme (initial, error, failure, success)`, async ({ page }) => {
-        await page.emulateMedia({ colorScheme: scheme });
-        await page.goto(c.path);
-        await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
-        const scan = async () => (await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze()).violations;
-
-        expect(await scan()).toEqual([]);
-        await submitButton(page, c).click();
-        await expect(alertWith(page, c.summary)).toBeVisible();
-        expect(await scan()).toEqual([]);
-
-        await emailField(page, c).fill(FAILURE_EMAIL);
-        await passwordField(page).fill("wrong-password");
-        await submitButton(page, c).click();
-        await expect(alertWith(page, c.failureTitle)).toBeVisible();
-        expect(await scan()).toEqual([]);
-
-        await emailField(page, c).fill("ali.yilmaz@example.com");
-        await passwordField(page).fill("secure-password");
-        await submitButton(page, c).click();
-        await expect(page.getByRole("heading", { level: 1, name: c.successTitle })).toBeVisible();
-        expect(await scan()).toEqual([]);
-      });
-    }
   });
 }
 
@@ -255,20 +308,25 @@ test.describe("login responsive", () => {
   }
 });
 
-test.describe("login stays a prototype", () => {
-  test("no cookies, storage or redirects after success or failure", async ({ page, context }) => {
+test.describe("login keeps credentials out of the browser", () => {
+  test.use({ expectApiErrors: true });
+
+  test("no storage after a failure or a success; only the CSRF cookie", async ({ page, context }) => {
+    await mockAuthApi(page, { login: [INVALID_CREDENTIALS, { status: 200, body: mockUser() }] });
     await page.goto("/tr/login");
     const c = COPY.tr;
-    for (const email of [FAILURE_EMAIL, "ali.yilmaz@example.com"]) {
-      await emailField(page, c).fill(email);
-      await passwordField(page).fill("secure-password");
-      await submitButton(page, c).click();
-      await expect(
-        email === FAILURE_EMAIL ? alertWith(page, c.failureTitle) : page.getByRole("heading", { name: c.successTitle }),
-      ).toBeVisible();
-    }
-    expect(new URL(page.url()).pathname).toBe("/tr/login");
-    expect(await context.cookies()).toEqual([]);
+    await emailField(page, c).fill("ali.yilmaz@example.com");
+    await passwordField(page).fill("wrong-password");
+    await submitButton(page, c).click();
+    await expect(alertWith(page, c.failureTitle)).toBeVisible();
+
+    await passwordField(page).fill("secure-password");
+    await submitButton(page, c).click();
+    await expect(page).toHaveURL(c.feedPath);
+
+    // The session cookie is the server's (HttpOnly, not mocked here); the page
+    // itself stores nothing.
+    expect((await context.cookies()).map((cookie) => cookie.name)).toEqual(["XSRF-TOKEN"]);
     const storage = await page.evaluate(() => ({
       local: Object.keys(localStorage),
       session: Object.keys(sessionStorage),

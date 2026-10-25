@@ -9,13 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Link } from "@/i18n/navigation";
-
-// Prototype only: no API call, no session, no cookie or storage, no redirect.
-// Any valid email and non-empty password "succeed" except the address below.
-const SIMULATED_DELAY_MS = 1200;
-// PROTOTYPE: simulates a failed sign-in. Remove with real authentication.
-const DEMO_FAILURE_EMAIL = "fail@example.com";
+import { Link, useRouter } from "@/i18n/navigation";
+import { login } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 
 // Message keys, translated at render: common.email.* / auth.login.password.*
 // No minimum length on sign-in: it would reveal the policy and block old passwords.
@@ -23,7 +19,9 @@ type FieldErrors = {
   email?: "errorEmpty" | "errorInvalid";
   password?: "errorEmpty";
 };
-type Status = "editing" | "submitting" | "failure" | "success";
+// failure: wrong credentials (one generic message, so the response never
+// reveals whether an account exists). error: network or server problem.
+type Status = "editing" | "submitting" | "failure" | "error";
 
 function validate(email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
@@ -36,8 +34,8 @@ function validate(email: string, password: string): FieldErrors {
 export function LoginForm() {
   const t = useTranslations("auth.login");
   const tCommon = useTranslations("common");
-  const tPrototype = useTranslations("prototype");
   const forgotNoteId = useId();
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,25 +46,15 @@ export function LoginForm() {
 
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
-  const successHeadingRef = useRef<HTMLHeadingElement>(null);
-  const focusEmailOnEdit = useRef(false);
-  const timerRef = useRef<number | undefined>(undefined);
-
-  useEffect(() => () => window.clearTimeout(timerRef.current), []);
 
   useEffect(() => {
-    if (status === "success") successHeadingRef.current?.focus();
     // After a failed attempt the password is cleared; continue there.
     if (status === "failure") passwordRef.current?.focus();
-    if (status === "editing" && focusEmailOnEdit.current) {
-      focusEmailOnEdit.current = false;
-      emailRef.current?.focus();
-    }
   }, [status]);
 
   const hasErrors = Boolean(errors.email || errors.password);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (status === "submitting") return;
 
@@ -78,47 +66,20 @@ export function LoginForm() {
     if (nextErrors.password) return passwordRef.current?.focus();
 
     setStatus("submitting");
-    timerRef.current = window.setTimeout(() => {
-      // Same delay and the same generic message for every failure, so the
-      // response never reveals whether an account exists.
-      if (email.trim().toLowerCase() === DEMO_FAILURE_EMAIL) {
+    try {
+      await login({ email: email.trim(), password });
+      // Signed in: go to the feed in the current language. The button keeps
+      // its loading state until the page changes.
+      router.replace("/feed");
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "INVALID_CREDENTIALS") {
         setPassword("");
         setShowPassword(false);
         setStatus("failure");
       } else {
-        setStatus("success");
+        setStatus("error");
       }
-    }, SIMULATED_DELAY_MS);
-  }
-
-  function handleBack() {
-    setPassword("");
-    setShowPassword(false);
-    setErrors({});
-    setAttempted(false);
-    focusEmailOnEdit.current = true;
-    setStatus("editing");
-  }
-
-  if (status === "success") {
-    return (
-      <div className="space-y-6">
-        <h1
-          ref={successHeadingRef}
-          tabIndex={-1}
-          className="font-display text-3xl font-bold tracking-tight"
-        >
-          {t("success.title")}
-        </h1>
-        <Alert variant="success">{t("success.usedEmail", { email: email.trim() })}</Alert>
-        <p className="border-t border-line pt-4 text-sm text-fg-muted">
-          {tPrototype("loginNotice")}
-        </p>
-        <Button variant="secondary" size="lg" fullWidth onClick={handleBack}>
-          {t("success.back")}
-        </Button>
-      </div>
-    );
+    }
   }
 
   return (
@@ -139,6 +100,11 @@ export function LoginForm() {
         {status === "failure" && !hasErrors && (
           <Alert variant="danger" title={t("failure.title")}>
             {t("failure.body")}
+          </Alert>
+        )}
+        {status === "error" && !hasErrors && (
+          <Alert variant="danger" title={tCommon("errorGeneric.title")}>
+            {tCommon("errorGeneric.body")}
           </Alert>
         )}
 

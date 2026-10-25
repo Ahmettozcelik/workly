@@ -3,7 +3,7 @@ import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
-import { AXE_TAGS, expect, test, THEME_KEY } from "./support";
+import { AXE_TAGS, expect, mockAuthApi, mockUser, problem, test, THEME_KEY } from "./support";
 
 type Messages = { [key: string]: string | Messages };
 const LOCALES = ["tr", "en"] as const;
@@ -78,6 +78,7 @@ test.describe("message files", () => {
 });
 
 // English page helpers.
+const nameField = (page: Page) => page.getByRole("textbox", { name: "Full name" });
 const emailField = (page: Page) => page.getByRole("textbox", { name: "Email" });
 const passwordField = (page: Page) => page.locator('input[name="password"]');
 const submitButton = (page: Page) => page.getByRole("button", { name: "Create account" });
@@ -95,6 +96,7 @@ test.describe("English register page", () => {
     await expect(page).toHaveTitle("Sign up · Workly");
     await expect(page.getByRole("heading", { level: 1, name: "Join Workly" })).toBeVisible();
     await expect(page.getByText("Get started with one personal account.")).toBeVisible();
+    await expect(nameField(page)).toHaveAttribute("autocomplete", "name");
     await expect(emailField(page)).toHaveAccessibleDescription(
       "Use your personal email address. You can add your work email later to link your account to your company.",
     );
@@ -112,7 +114,7 @@ test.describe("English register page", () => {
     await expect(page.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "#aydinlatma-metni");
     await expect(page.getByText("Prototype", { exact: true }).first()).toBeAttached();
     // No Turkish copy leaks into the English page.
-    for (const turkish of ["Kayıt", "Şifre", "E-posta", "Tema", "Hesap oluştur", "Prototip"]) {
+    for (const turkish of ["Kayıt", "Şifre", "E-posta", "Tema", "Hesap oluştur", "Prototip", "Ad Soyad"]) {
       await expect(page.locator("body"), turkish).not.toContainText(turkish);
     }
   });
@@ -121,10 +123,18 @@ test.describe("English register page", () => {
     await page.goto("/en/register");
     await submitButton(page).click();
     await expect(errorSummary(page)).toContainText("Please fix the marked fields and try again.");
+    await expect(nameField(page)).toHaveAccessibleDescription(/Enter your full name\./);
     await expect(emailField(page)).toHaveAccessibleDescription(/Enter your email address\./);
     await expect(passwordField(page)).toHaveAccessibleDescription(/Create a password\./);
-    await expect(emailField(page)).toBeFocused();
+    await expect(nameField(page)).toBeFocused();
 
+    await nameField(page).fill("x".repeat(101));
+    await passwordField(page).fill("ş".repeat(37));
+    await submitButton(page).click();
+    await expect(nameField(page)).toHaveAccessibleDescription(/Full name can be at most 100 characters\./);
+    await expect(passwordField(page)).toHaveAccessibleDescription(/Password is too long\. Choose a shorter one\./);
+
+    await nameField(page).fill("Ali Yilmaz");
     await emailField(page).fill("ali@");
     await passwordField(page).fill("short");
     await submitButton(page).click();
@@ -138,30 +148,24 @@ test.describe("English register page", () => {
     await expect(errorSummary(page)).toHaveCount(0);
   });
 
-  test("shows the English success preview", async ({ page }) => {
+  test("registers in English and opens the English feed", async ({ page }) => {
+    let release = () => {};
+    const calls = await mockAuthApi(
+      page,
+      { register: [{ status: 201, body: mockUser("en") }] },
+      new Promise<void>((resolve) => (release = resolve)),
+    );
     await page.goto("/en/register");
+    await nameField(page).fill("Ali Yilmaz");
     await emailField(page).fill("ali.yilmaz@example.com");
     await passwordField(page).fill("secure-password");
     await submitButton(page).click();
 
-    const busy = page.getByRole("button", { name: "Creating account" });
-    await expect(busy).toHaveAttribute("aria-busy", "true");
-    await expect(page.getByRole("heading", { level: 1, name: "Check your email" })).toBeFocused();
-    await expect(page.getByRole("status")).toContainText(
-      "We've sent a verification link to ali.yilmaz@example.com.",
-    );
-    await expect(
-      page.getByText(
-        "Once you verify your email, you can post, apply for jobs, and send messages. You can complete your profile anytime.",
-      ),
-    ).toBeVisible();
-    await expect(
-      page.getByText("Prototype: No real account was created and no email was sent."),
-    ).toBeVisible();
-
-    await page.getByRole("button", { name: "Use a different email" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "Join Workly" })).toBeVisible();
-    await expect(emailField(page)).toBeFocused();
+    await expect(page.getByRole("button", { name: "Creating account" })).toHaveAttribute("aria-busy", "true");
+    release();
+    await expect(page).toHaveURL("/en/feed");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    expect(calls.find((call) => call.path === "/api/auth/register")?.body).toMatchObject({ locale: "en" });
   });
 
   test("labels the theme toggle in English", async ({ page }) => {
@@ -188,24 +192,46 @@ test.describe("English register page", () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  for (const scheme of ["light", "dark"] as const) {
-    test(`has no axe violations in the ${scheme} theme (initial, error, success)`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
-      await page.goto("/en/register");
-      await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
-      const scan = async () => (await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze()).violations;
+  test.describe("with API errors", () => {
+    test.use({ expectApiErrors: true });
 
-      expect(await scan()).toEqual([]);
-      await submitButton(page).click();
-      await expect(errorSummary(page)).toBeVisible();
-      expect(await scan()).toEqual([]);
+    test("shows English messages for a taken email and a server error", async ({ page }) => {
+      await mockAuthApi(page, { register: [problem(409, "EMAIL_TAKEN"), problem(500, "INTERNAL_ERROR")] });
+      await page.goto("/en/register");
+      await nameField(page).fill("Ali Yilmaz");
       await emailField(page).fill("ali.yilmaz@example.com");
       await passwordField(page).fill("secure-password");
       await submitButton(page).click();
-      await expect(page.getByRole("heading", { level: 1, name: "Check your email" })).toBeVisible();
-      expect(await scan()).toEqual([]);
+      await expect(emailField(page)).toHaveAccessibleDescription(/An account with this email already exists\./);
+
+      await emailField(page).fill("ali.yilmaz2@example.com");
+      await submitButton(page).click();
+      await expect(page.getByRole("alert").filter({ hasText: "We couldn't complete that right now" })).toContainText(
+        "Check your connection and try again in a moment.",
+      );
     });
-  }
+
+    for (const scheme of ["light", "dark"] as const) {
+      test(`has no axe violations in the ${scheme} theme (initial, error, email taken)`, async ({ page }) => {
+        await mockAuthApi(page, { register: [problem(409, "EMAIL_TAKEN")] });
+        await page.emulateMedia({ colorScheme: scheme });
+        await page.goto("/en/register");
+        await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
+        const scan = async () => (await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze()).violations;
+
+        expect(await scan()).toEqual([]);
+        await submitButton(page).click();
+        await expect(errorSummary(page)).toBeVisible();
+        expect(await scan()).toEqual([]);
+        await nameField(page).fill("Ali Yilmaz");
+        await emailField(page).fill("ali.yilmaz@example.com");
+        await passwordField(page).fill("secure-password");
+        await submitButton(page).click();
+        await expect(emailField(page)).toHaveAccessibleDescription(/An account with this email already exists\./);
+        expect(await scan()).toEqual([]);
+      });
+    }
+  });
 });
 
 test.describe("locale detection", () => {

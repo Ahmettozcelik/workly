@@ -15,12 +15,14 @@
     "errorSummary": {
       "title": "Bazı alanlar eksik veya hatalı",
       "body": "Lütfen işaretli alanları düzelt ve tekrar dene."
+    },
+    "errorGeneric": {
+      "title": "İşlemini şu anda tamamlayamadık",
+      "body": "Bağlantını kontrol edip biraz sonra tekrar dene."
     }
   },
   "prototype": {
-    "badge": "Prototip",
-    "registerNotice": "Prototip: Gerçek bir hesap oluşturulmadı ve e-posta gönderilmedi.",
-    "loginNotice": "Prototip: Gerçek bir oturum oluşturulmadı."
+    "badge": "Prototip"
   },
   "auth": {
     "brand": {
@@ -38,24 +40,25 @@
       },
       "title": "Workly'ye katıl",
       "subtitle": "Tek bir kişisel hesapla başla.",
+      "name": {
+        "label": "Ad Soyad",
+        "errorEmpty": "Adını ve soyadını gir.",
+        "errorTooLong": "Ad Soyad en fazla {max} karakter olabilir."
+      },
       "email": {
-        "hint": "Kişisel e-posta adresini kullan. İş e-postanı şirket bağlantısı için daha sonra ekleyebilirsin."
+        "hint": "Kişisel e-posta adresini kullan. İş e-postanı şirket bağlantısı için daha sonra ekleyebilirsin.",
+        "errorTaken": "Bu e-posta adresiyle zaten bir hesap var."
       },
       "password": {
         "hint": "En az {min} karakter.",
         "errorEmpty": "Bir şifre belirle.",
-        "errorTooShort": "Şifren en az {min} karakter olmalı."
+        "errorTooShort": "Şifren en az {min} karakter olmalı.",
+        "errorTooLong": "Şifre çok uzun. Daha kısa bir şifre seç."
       },
       "submit": "Hesap oluştur",
       "submitting": "Hesap oluşturuluyor",
       "legal": "Devam ederek <terms>Kullanım Koşulları</terms>'nı kabul etmiş ve <privacy>Aydınlatma Metni</privacy>'ni okumuş olursun.",
-      "signInPrompt": "Zaten hesabın var mı? <link>Giriş yap</link>",
-      "success": {
-        "title": "E-postanı kontrol et",
-        "sentTo": "Doğrulama bağlantısını {email} adresine gönderdik.",
-        "nextSteps": "E-postanı doğruladıktan sonra paylaşım yapabilir, iş ilanlarına başvurabilir ve mesajlaşabilirsin. Profilini dilediğin zaman tamamlayabilirsin.",
-        "useDifferentEmail": "Farklı bir e-posta kullan"
-      }
+      "signInPrompt": "Zaten hesabın var mı? <link>Giriş yap</link>"
     },
     "login": {
       "meta": {
@@ -74,11 +77,6 @@
       "failure": {
         "title": "Giriş yapılamadı",
         "body": "E-posta adresi veya şifre hatalı. Lütfen tekrar dene."
-      },
-      "success": {
-        "title": "Giriş önizlemesi tamamlandı",
-        "usedEmail": "Bu önizlemede {email} kullanıldı.",
-        "back": "Giriş ekranına dön"
       },
       "registerPrompt": "Hesabın yok mu? <link>Kayıt ol</link>"
     }
