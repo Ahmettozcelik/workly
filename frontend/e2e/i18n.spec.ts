@@ -209,10 +209,28 @@ test.describe("English register page", () => {
 });
 
 test.describe("locale detection", () => {
-  test("a request without a language preference goes to Turkish", async ({ request }) => {
+  test("a request without a language preference goes to Turkish", async ({ playwright, baseURL }) => {
     for (const [from, to] of [["/register", "/tr/register"], ["/login", "/tr/login"], ["/", "/tr"]]) {
+      // A fresh context per request: the cookie set by one must not reach the next.
+      const request = await playwright.request.newContext({ baseURL });
       const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), from).toBe(307);
+      expect(response.headers()["location"], from).toBe(to);
+      // With no Accept-Language at all, next-intl records the fallback language.
+      expect(response.headers()["set-cookie"], from).toMatch(/^NEXT_LOCALE=tr;/);
+      await request.dispose();
+    }
+  });
+
+  test("a redirect matching the browser language sets no cookie", async ({ request }) => {
+    for (const [language, from, to] of [
+      ["tr-TR,tr;q=0.9", "/login", "/tr/login"],
+      ["en-US,en;q=0.9", "/register", "/en/register"],
+    ]) {
+      const response = await request.get(from, {
+        maxRedirects: 0,
+        headers: { "accept-language": language },
+      });
       expect(response.headers()["location"], from).toBe(to);
       expect(response.headers()["set-cookie"], from).toBeUndefined();
     }

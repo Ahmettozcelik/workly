@@ -29,6 +29,7 @@ const COPY = {
     notice: "Prototip: Gerçek bir oturum oluşturulmadı.",
     back: "Giriş ekranına dön",
     theme: /^Tema:/,
+    otherLanguage: "English",
   },
   en: {
     path: "/en/login",
@@ -53,6 +54,7 @@ const COPY = {
     notice: "Prototype: No real session has been created.",
     back: "Back to sign in",
     theme: /^Theme:/,
+    otherLanguage: "Türkçe",
   },
 } as const;
 type Copy = (typeof COPY)[keyof typeof COPY];
@@ -196,6 +198,7 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
     test("Tab order follows the visual order", async ({ page }) => {
       await page.goto(c.path);
       const expected = [
+        page.getByRole("link", { name: c.otherLanguage }),
         page.getByRole("button", { name: c.theme }),
         emailField(page, c),
         passwordField(page),
@@ -239,7 +242,7 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
 }
 
 test.describe("login responsive", () => {
-  for (const width of [375, 768, 1280]) {
+  for (const width of [320, 375, 768, 1280]) {
     test(`no horizontal overflow at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       for (const path of ["/tr/login", "/en/login"]) {

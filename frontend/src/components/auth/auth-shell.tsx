@@ -1,6 +1,7 @@
 import { getImageProps, type StaticImageData } from "next/image";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { LocaleSwitcher } from "@/components/i18n/locale-switcher";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
@@ -15,7 +16,8 @@ const BRAND_POINTS = ["oneAccount", "workEmail", "verify"] as const;
 // give Next.js the dimensions and fail the build if a file is missing.
 
 // Shared layout of the auth pages: the desktop brand panel plus the form
-// column (header with theme toggle, mobile tagline, then the page's form).
+// column (header with language switcher and theme toggle, mobile tagline,
+// then the page's form).
 export function AuthShell({ children }: { children: ReactNode }) {
   const t = useTranslations();
 
@@ -27,9 +29,12 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <header className="flex items-center justify-between gap-4 lg:justify-end">
           <div className="flex items-center gap-3 lg:hidden">
             <Logo />
-            <Badge>{t("prototype.badge")}</Badge>
+            <Badge className="max-[359px]:hidden">{t("prototype.badge")}</Badge>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher />
+            <ThemeToggle />
+          </div>
         </header>
 
         <main className="flex flex-1 flex-col items-center justify-start pt-8 pb-12 sm:justify-center sm:py-12">

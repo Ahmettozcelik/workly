@@ -140,6 +140,7 @@ test.describe("keyboard", () => {
   test("Tab order follows the visual order", async ({ page }) => {
     await page.goto("/tr/register");
     const expected = [
+      page.getByRole("link", { name: "English" }),
       themeToggle(page),
       emailField(page),
       passwordField(page),
@@ -213,6 +214,8 @@ test.describe("theme", () => {
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/tr/register");
 
+    // The language switcher comes first in the header.
+    await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
     await expect(themeToggle(page)).toBeFocused();
     await page.keyboard.press("Enter");
@@ -227,7 +230,7 @@ test.describe("theme", () => {
 });
 
 test.describe("responsive", () => {
-  for (const width of [375, 768, 1280]) {
+  for (const width of [320, 375, 768, 1280]) {
     test(`no horizontal overflow at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       await page.goto("/tr/register");
