@@ -48,8 +48,9 @@ workly:
         window: 1h
 
   session:
-    # Session cookie (WORKLY_SESSION, HttpOnly, SameSite=Lax; see SessionCookieConfig).
-    # Must be true in production (HTTPS). False only for local http://localhost.
+    # Secure attribute of the session cookie (WORKLY_SESSION, HttpOnly, SameSite=Lax;
+    # SessionCookieConfig) and the XSRF-TOKEN cookie (SameSite=Lax; SecurityConfig).
+    # False only for local http://localhost; the prod profile fixes it to true.
     cookie-secure: ${SESSION_COOKIE_SECURE:false}
 
 management:

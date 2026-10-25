@@ -83,15 +83,19 @@ class AuthApiIntegrationTests {
 
 	@Test
 	void csrfEndpointIssuesATokenTheFrontendCanRead() throws Exception {
-		var setCookies = browser.get("/api/auth/csrf")
+		var response = browser.get("/api/auth/csrf")
 			.andExpect(status().isNoContent())
-			.andReturn().getResponse().getHeaders(HttpHeaders.SET_COOKIE);
+			.andReturn().getResponse();
+		var setCookies = response.getHeaders(HttpHeaders.SET_COOKIE);
 		String csrfCookie = setCookies.stream()
 			.filter(cookie -> cookie.startsWith(CSRF_COOKIE + "="))
 			.findFirst()
 			.orElseThrow();
 		// Readable by the frontend's JavaScript, unlike the session cookie.
-		assertThat(csrfCookie).doesNotContain("HttpOnly");
+		// SameSite=Lax (a cookie attribute, not in MockMvc's header text); Secure
+		// only in the prod profile (ProductionProfileTests).
+		assertThat(csrfCookie).doesNotContain("HttpOnly").doesNotContain("Secure");
+		assertThat(response.getCookie(CSRF_COOKIE).getAttribute("SameSite")).isEqualTo("Lax");
 		assertThat(browser.cookie(CSRF_COOKIE)).isNotBlank();
 		// No session for anonymous visitors.
 		assertThat(browser.cookie(SESSION_COOKIE)).isNull();
