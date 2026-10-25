@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+// The Spring Boot API. The browser only talks to this Next.js origin: /api is
+// proxied, so session and CSRF cookies are first-party and no CORS is needed.
+// Read when the routes are built: set BACKEND_URL at build time in production.
+const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080";
+
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
+  },
   turbopack: {
     rules: {
       "*.css": {

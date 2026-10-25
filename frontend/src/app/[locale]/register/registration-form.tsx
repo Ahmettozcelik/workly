@@ -1,111 +1,128 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useRef, useState, type FormEvent } from "react";
 import { PasswordInput } from "@/components/auth/password-input";
-import { validateEmail } from "@/components/auth/validation";
+import {
+  DISPLAY_NAME_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validateDisplayName,
+  validateEmail,
+  validateNewPassword,
+} from "@/components/auth/validation";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { register } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 
-// Prototype only: no API call, no account, no email. Validation rules here are
-// placeholders, not the final security policy.
-const PASSWORD_MIN_LENGTH = 8;
-const SIMULATED_DELAY_MS = 1200;
-
-// Message keys, translated at render: common.email.* / auth.register.password.*
+// Message keys, translated at render: auth.register.name.* / common.email.* /
+// auth.register.email.errorTaken / auth.register.password.*
 type FieldErrors = {
-  email?: "errorEmpty" | "errorInvalid";
-  password?: "errorEmpty" | "errorTooShort";
+  displayName?: "errorEmpty" | "errorTooLong";
+  email?: "errorEmpty" | "errorInvalid" | "errorTaken";
+  password?: "errorEmpty" | "errorTooShort" | "errorTooLong";
 };
-type Status = "editing" | "submitting" | "success";
+type Field = keyof FieldErrors;
+type Status = "editing" | "submitting";
 
-function validate(email: string, password: string): FieldErrors {
+function validate(displayName: string, email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
+  const nameError = validateDisplayName(displayName);
+  if (nameError) errors.displayName = nameError;
   const emailError = validateEmail(email);
   if (emailError) errors.email = emailError;
-  if (!password) errors.password = "errorEmpty";
-  else if (password.length < PASSWORD_MIN_LENGTH) {
-    errors.password = "errorTooShort";
-  }
+  const passwordError = validateNewPassword(password);
+  if (passwordError) errors.password = passwordError;
   return errors;
+}
+
+// API field codes (VALIDATION_FAILED) as this form's message keys.
+const API_CODE_TO_KEY: Record<string, string> = {
+  REQUIRED: "errorEmpty",
+  INVALID_EMAIL: "errorInvalid",
+  TOO_SHORT: "errorTooShort",
+  TOO_LONG: "errorTooLong",
+};
+
+function fromApiErrors(error: ApiError): FieldErrors {
+  const errors: Record<string, string> = {};
+  for (const { field, code } of error.fieldErrors) {
+    const key = API_CODE_TO_KEY[code];
+    if (key && (field === "displayName" || field === "email" || field === "password")) errors[field] = key;
+  }
+  return errors as FieldErrors;
 }
 
 export function RegistrationForm() {
   const t = useTranslations("auth.register");
   const tCommon = useTranslations("common");
-  const tPrototype = useTranslations("prototype");
+  const locale = useLocale();
+  const router = useRouter();
 
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [attempted, setAttempted] = useState(false);
   const [status, setStatus] = useState<Status>("editing");
+  // Request failed for a reason the user cannot fix in a field (network, server).
+  const [failed, setFailed] = useState(false);
 
-  const emailRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
-  const successHeadingRef = useRef<HTMLHeadingElement>(null);
-  const focusEmailOnEdit = useRef(false);
-  const timerRef = useRef<number | undefined>(undefined);
+  const refs = {
+    displayName: useRef<HTMLInputElement>(null),
+    email: useRef<HTMLInputElement>(null),
+    password: useRef<HTMLInputElement>(null),
+  };
 
-  useEffect(() => () => window.clearTimeout(timerRef.current), []);
+  const hasErrors = Boolean(errors.displayName || errors.email || errors.password);
 
-  useEffect(() => {
-    if (status === "success") successHeadingRef.current?.focus();
-    if (status === "editing" && focusEmailOnEdit.current) {
-      focusEmailOnEdit.current = false;
-      emailRef.current?.focus();
-    }
-  }, [status]);
+  // Shows the errors and focuses the first invalid field, in form order.
+  function showErrors(next: FieldErrors) {
+    setErrors(next);
+    const first = (["displayName", "email", "password"] as Field[]).find((field) => next[field]);
+    if (first) refs[first].current?.focus();
+  }
 
-  const hasErrors = Boolean(errors.email || errors.password);
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (status === "submitting") return;
 
-    const nextErrors = validate(email, password);
-    setErrors(nextErrors);
     setAttempted(true);
-
-    if (nextErrors.email) return emailRef.current?.focus();
-    if (nextErrors.password) return passwordRef.current?.focus();
+    setFailed(false);
+    const nextErrors = validate(displayName, email, password);
+    showErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setStatus("submitting");
-    timerRef.current = window.setTimeout(() => setStatus("success"), SIMULATED_DELAY_MS);
+    try {
+      await register({ displayName: displayName.trim(), email: email.trim(), password, locale });
+      // Signed in: go to the feed in the current language. The button keeps
+      // its loading state until the page changes.
+      router.replace("/feed");
+    } catch (error) {
+      setStatus("editing");
+      if (error instanceof ApiError && error.code === "EMAIL_TAKEN") {
+        showErrors({ email: "errorTaken" });
+        return;
+      }
+      const apiErrors = error instanceof ApiError ? fromApiErrors(error) : {};
+      if (Object.keys(apiErrors).length > 0) {
+        showErrors(apiErrors);
+        return;
+      }
+      setFailed(true);
+    }
   }
 
-  function handleUseDifferentEmail() {
-    setPassword("");
-    setShowPassword(false);
-    setErrors({});
-    setAttempted(false);
-    focusEmailOnEdit.current = true;
-    setStatus("editing");
-  }
-
-  if (status === "success") {
-    return (
-      <div className="space-y-6">
-        <h1
-          ref={successHeadingRef}
-          tabIndex={-1}
-          className="font-display text-3xl font-bold tracking-tight"
-        >
-          {t("success.title")}
-        </h1>
-        <Alert variant="success">{t("success.sentTo", { email: email.trim() })}</Alert>
-        <p className="text-fg-muted">{t("success.nextSteps")}</p>
-        <p className="border-t border-line pt-4 text-sm text-fg-muted">
-          {tPrototype("registerNotice")}
-        </p>
-        <Button variant="secondary" size="lg" fullWidth onClick={handleUseDifferentEmail}>
-          {t("success.useDifferentEmail")}
-        </Button>
-      </div>
+  // After a failed submit, errors follow the input live.
+  function revalidate(next: { displayName?: string; email?: string; password?: string }) {
+    if (!attempted) return;
+    setErrors(
+      validate(next.displayName ?? displayName, next.email ?? email, next.password ?? password),
     );
   }
 
@@ -124,6 +141,11 @@ export function RegistrationForm() {
             {tCommon("errorSummary.body")}
           </Alert>
         )}
+        {failed && !hasErrors && (
+          <Alert variant="danger" title={tCommon("errorGeneric.title")}>
+            {tCommon("errorGeneric.body")}
+          </Alert>
+        )}
 
         <p className="text-sm text-fg-muted">
           <span aria-hidden="true" className="text-danger">
@@ -133,14 +155,44 @@ export function RegistrationForm() {
         </p>
 
         <FormField
-          label={tCommon("email.label")}
-          hint={t("email.hint")}
-          error={errors.email ? tCommon(`email.${errors.email}`) : undefined}
+          label={t("name.label")}
+          error={
+            errors.displayName
+              ? t(`name.${errors.displayName}`, { max: DISPLAY_NAME_MAX_LENGTH })
+              : undefined
+          }
           required
         >
           {(control) => (
             <Input
-              ref={emailRef}
+              ref={refs.displayName}
+              name="displayName"
+              autoComplete="name"
+              value={displayName}
+              onChange={(event) => {
+                setDisplayName(event.target.value);
+                revalidate({ displayName: event.target.value });
+              }}
+              {...control}
+            />
+          )}
+        </FormField>
+
+        <FormField
+          label={tCommon("email.label")}
+          hint={t("email.hint")}
+          error={
+            errors.email === "errorTaken"
+              ? t("email.errorTaken")
+              : errors.email
+                ? tCommon(`email.${errors.email}`)
+                : undefined
+          }
+          required
+        >
+          {(control) => (
+            <Input
+              ref={refs.email}
               type="email"
               name="email"
               autoComplete="email"
@@ -149,7 +201,7 @@ export function RegistrationForm() {
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);
-                if (attempted) setErrors(validate(event.target.value, password));
+                revalidate({ email: event.target.value });
               }}
               {...control}
             />
@@ -168,13 +220,13 @@ export function RegistrationForm() {
         >
           {(control) => (
             <PasswordInput
-              ref={passwordRef}
+              ref={refs.password}
               name="password"
               autoComplete="new-password"
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
-                if (attempted) setErrors(validate(email, event.target.value));
+                revalidate({ password: event.target.value });
               }}
               visible={showPassword}
               onVisibleChange={setShowPassword}

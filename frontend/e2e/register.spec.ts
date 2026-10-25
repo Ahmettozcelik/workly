@@ -5,12 +5,17 @@ import {
   expect,
   isDesktop,
   isPhotoRequest,
+  MOCK_CSRF_TOKEN,
+  mockAuthApi,
+  mockUser,
   photoBehind,
+  problem,
   test,
   THEME_KEY,
   visiblePhoto,
 } from "./support";
 
+const nameField = (page: Page) => page.getByRole("textbox", { name: "Ad Soyad" });
 const emailField = (page: Page) => page.getByRole("textbox", { name: "E-posta" });
 // Password inputs have no ARIA role, so locate by name; the "structure" test
 // asserts its accessible name ("Şifre", the aria-hidden "*" excluded).
@@ -29,6 +34,8 @@ test.describe("structure", () => {
     await page.goto("/tr/register");
     await expect(page).toHaveTitle("Kayıt ol · Workly");
     await expect(page.getByRole("heading", { level: 1, name: "Workly'ye katıl" })).toBeVisible();
+    await expect(nameField(page)).toHaveAttribute("autocomplete", "name");
+    await expect(nameField(page)).toHaveAttribute("required", "");
     await expect(emailField(page)).toHaveAttribute("type", "email");
     await expect(emailField(page)).toHaveAttribute("autocomplete", "email");
     await expect(emailField(page)).toHaveAccessibleDescription(/Kişisel e-posta adresini kullan/);
@@ -53,20 +60,23 @@ test.describe("structure", () => {
 });
 
 test.describe("validation", () => {
-  test("empty submit shows errors and focuses the email field", async ({ page }) => {
+  test("empty submit shows errors and focuses the first field", async ({ page }) => {
     await page.goto("/tr/register");
     await submitButton(page).click();
 
     await expect(errorSummary(page)).toBeVisible();
+    await expect(nameField(page)).toHaveAttribute("aria-invalid", "true");
+    await expect(nameField(page)).toHaveAccessibleDescription(/Adını ve soyadını gir\./);
     await expect(emailField(page)).toHaveAttribute("aria-invalid", "true");
     await expect(emailField(page)).toHaveAccessibleDescription(/E-posta adresini gir\./);
     await expect(passwordField(page)).toHaveAttribute("aria-invalid", "true");
     await expect(passwordField(page)).toHaveAccessibleDescription(/Bir şifre belirle\./);
-    await expect(emailField(page)).toBeFocused();
+    await expect(nameField(page)).toBeFocused();
   });
 
   test("invalid email and short password show specific messages", async ({ page }) => {
     await page.goto("/tr/register");
+    await nameField(page).fill("Ali Yılmaz");
     await emailField(page).fill("ali@");
     await passwordField(page).fill("kisa");
     await submitButton(page).click();
@@ -81,6 +91,8 @@ test.describe("validation", () => {
     await submitButton(page).click();
     await expect(errorSummary(page)).toBeVisible();
 
+    await nameField(page).fill("Ali Yılmaz");
+    await expect(nameField(page)).not.toHaveAttribute("aria-invalid", "true");
     await emailField(page).fill("ali.yilmaz@example.com");
     await expect(emailField(page)).not.toHaveAttribute("aria-invalid", "true");
     await expect(passwordField(page)).toHaveAttribute("aria-invalid", "true");
@@ -89,6 +101,21 @@ test.describe("validation", () => {
     await passwordField(page).fill("guvenli-sifre");
     await expect(passwordField(page)).not.toHaveAttribute("aria-invalid", "true");
     await expect(errorSummary(page)).toHaveCount(0);
+  });
+
+  test("the backend's limits are checked before anything is sent", async ({ page }) => {
+    const calls = await mockAuthApi(page, { register: [{ status: 201, body: mockUser() }] });
+    await page.goto("/tr/register");
+    await nameField(page).fill("x".repeat(101));
+    await emailField(page).fill("ali.yilmaz@example.com");
+    // 37 characters but 74 bytes: over bcrypt's 72-byte limit.
+    await passwordField(page).fill("ş".repeat(37));
+    await submitButton(page).click();
+
+    await expect(nameField(page)).toHaveAccessibleDescription(/Ad Soyad en fazla 100 karakter olabilir\./);
+    await expect(passwordField(page)).toHaveAccessibleDescription(/Şifre çok uzun\. Daha kısa bir şifre seç\./);
+    await expect(nameField(page)).toBeFocused();
+    expect(calls).toEqual([]);
   });
 });
 
@@ -108,32 +135,155 @@ test.describe("password toggle", () => {
   });
 });
 
-test.describe("submission (prototype)", () => {
-  test("shows loading, then success, and returns with the email kept", async ({ page }) => {
+// Fills a valid form (surrounding spaces must be trimmed before sending).
+async function fillValidForm(page: Page) {
+  await nameField(page).fill("  Ayşe Yılmaz ");
+  await emailField(page).fill("ayse@example.com");
+  await passwordField(page).fill("guvenli-sifre");
+}
+
+const genericError = (page: Page) =>
+  page.getByRole("alert").filter({ hasText: "İşlemini şu anda tamamlayamadık" });
+
+test.describe("submission", () => {
+  test("creates the account through the API, shows loading, then opens the feed", async ({ page }) => {
+    let release = () => {};
+    const calls = await mockAuthApi(
+      page,
+      { register: [{ status: 201, body: mockUser() }] },
+      new Promise<void>((resolve) => (release = resolve)),
+    );
     await page.goto("/tr/register");
-    await emailField(page).fill("ali.yilmaz@example.com");
-    await passwordField(page).fill("guvenli-sifre");
+    await fillValidForm(page);
     await submitButton(page).click();
 
     const busy = page.getByRole("button", { name: "Hesap oluşturuluyor" });
     await expect(busy).toBeDisabled();
     await expect(busy).toHaveAttribute("aria-busy", "true");
+    release();
 
-    const successHeading = page.getByRole("heading", { level: 1, name: "E-postanı kontrol et" });
-    await expect(successHeading).toBeFocused();
-    await expect(page.getByRole("status")).toContainText(
-      "Doğrulama bağlantısını ali.yilmaz@example.com adresine gönderdik.",
-    );
-    await expect(
-      page.getByText("Prototip: Gerçek bir hesap oluşturulmadı ve e-posta gönderilmedi."),
-    ).toBeVisible();
-
-    await page.getByRole("button", { name: "Farklı bir e-posta kullan" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "Workly'ye katıl" })).toBeVisible();
-    await expect(emailField(page)).toHaveValue("ali.yilmaz@example.com");
-    await expect(passwordField(page)).toHaveValue("");
-    await expect(emailField(page)).toBeFocused();
+    await expect(page).toHaveURL("/tr/feed");
+    // A CSRF token is fetched first, then sent with the trimmed values and the page's language.
+    expect(calls.map((call) => call.path)).toEqual(["/api/auth/csrf", "/api/auth/register"]);
+    expect(calls[1]).toEqual({
+      path: "/api/auth/register",
+      csrfToken: MOCK_CSRF_TOKEN,
+      body: { displayName: "Ayşe Yılmaz", email: "ayse@example.com", password: "guvenli-sifre", locale: "tr" },
+    });
   });
+
+  test("an existing CSRF cookie is reused", async ({ page, context, baseURL }) => {
+    const calls = await mockAuthApi(page, { register: [{ status: 201, body: mockUser() }] });
+    await context.addCookies([{ name: "XSRF-TOKEN", value: "already-here", url: baseURL! }]);
+    await page.goto("/tr/register");
+    await fillValidForm(page);
+    await submitButton(page).click();
+
+    await expect(page).toHaveURL("/tr/feed");
+    expect(calls.map((call) => [call.path, call.csrfToken])).toEqual([["/api/auth/register", "already-here"]]);
+  });
+});
+
+test.describe("submission errors", () => {
+  test.use({ expectApiErrors: true });
+
+  test("a taken email is shown on the email field", async ({ page }) => {
+    await mockAuthApi(page, { register: [problem(409, "EMAIL_TAKEN")] });
+    await page.goto("/tr/register");
+    await fillValidForm(page);
+    await submitButton(page).click();
+
+    await expect(emailField(page)).toHaveAttribute("aria-invalid", "true");
+    await expect(emailField(page)).toHaveAccessibleDescription(/Bu e-posta adresiyle zaten bir hesap var\./);
+    await expect(emailField(page)).toBeFocused();
+    await expect(errorSummary(page)).toBeVisible();
+    // Everything stays as typed; editing the email clears the error.
+    await expect(nameField(page)).toHaveValue("  Ayşe Yılmaz ");
+    await expect(passwordField(page)).toHaveValue("guvenli-sifre");
+    expect(new URL(page.url()).pathname).toBe("/tr/register");
+    await emailField(page).fill("ayse.yilmaz@example.com");
+    await expect(emailField(page)).not.toHaveAttribute("aria-invalid", "true");
+  });
+
+  test("server validation errors are shown on their fields", async ({ page }) => {
+    await mockAuthApi(page, {
+      register: [problem(400, "VALIDATION_FAILED", [{ field: "password", code: "TOO_SHORT" }])],
+    });
+    await page.goto("/tr/register");
+    await fillValidForm(page);
+    await submitButton(page).click();
+
+    await expect(passwordField(page)).toHaveAccessibleDescription(/Şifren en az 8 karakter olmalı\./);
+    await expect(passwordField(page)).toBeFocused();
+    await expect(genericError(page)).toHaveCount(0);
+  });
+
+  for (const [label, reply] of [
+    ["a server error", problem(500, "INTERNAL_ERROR")],
+    ["a network failure", "abort"],
+    ["an unknown validation code", problem(400, "VALIDATION_FAILED", [{ field: "locale", code: "INVALID_LOCALE" }])],
+  ] as const) {
+    test(`${label} shows a generic error and keeps the input`, async ({ page }) => {
+      await mockAuthApi(page, { register: [reply] });
+      await page.goto("/tr/register");
+      await fillValidForm(page);
+      await submitButton(page).click();
+
+      await expect(genericError(page)).toBeVisible();
+      await expect(errorSummary(page)).toHaveCount(0);
+      await expect(emailField(page)).toHaveValue("ayse@example.com");
+      await expect(passwordField(page)).toHaveValue("guvenli-sifre");
+      await expect(submitButton(page)).toBeEnabled();
+      expect(new URL(page.url()).pathname).toBe("/tr/register");
+    });
+  }
+
+  test("a rejected CSRF token is refreshed and the request retried once", async ({ page }) => {
+    const calls = await mockAuthApi(page, {
+      register: [problem(403, "CSRF_INVALID"), { status: 201, body: mockUser() }],
+    });
+    await page.goto("/tr/register");
+    await fillValidForm(page);
+    await submitButton(page).click();
+
+    await expect(page).toHaveURL("/tr/feed");
+    expect(calls.map((call) => call.path)).toEqual([
+      "/api/auth/csrf",
+      "/api/auth/register",
+      "/api/auth/csrf",
+      "/api/auth/register",
+    ]);
+  });
+
+  test("other 403s are not retried", async ({ page }) => {
+    const calls = await mockAuthApi(page, { register: [problem(403, "FORBIDDEN")] });
+    await page.goto("/tr/register");
+    await fillValidForm(page);
+    await submitButton(page).click();
+
+    await expect(genericError(page)).toBeVisible();
+    expect(calls.filter((call) => call.path === "/api/auth/register")).toHaveLength(1);
+  });
+
+  for (const scheme of ["light", "dark"] as const) {
+    test(`no axe violations with server errors in the ${scheme} theme`, async ({ page }) => {
+      await mockAuthApi(page, { register: [problem(409, "EMAIL_TAKEN"), problem(500, "INTERNAL_ERROR")] });
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("/tr/register");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
+      const scan = async () => (await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze()).violations;
+
+      await fillValidForm(page);
+      await submitButton(page).click();
+      await expect(emailField(page)).toHaveAttribute("aria-invalid", "true");
+      expect(await scan()).toEqual([]);
+
+      await emailField(page).fill("ayse.yilmaz@example.com");
+      await submitButton(page).click();
+      await expect(genericError(page)).toBeVisible();
+      expect(await scan()).toEqual([]);
+    });
+  }
 });
 
 test.describe("keyboard", () => {
@@ -142,6 +292,7 @@ test.describe("keyboard", () => {
     const expected = [
       page.getByRole("link", { name: "English" }),
       themeToggle(page),
+      nameField(page),
       emailField(page),
       passwordField(page),
       passwordToggle(page),
