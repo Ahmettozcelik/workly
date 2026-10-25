@@ -100,5 +100,10 @@
       "light": "Light theme selected",
       "dark": "Dark theme selected"
     }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you're looking for may have moved or never existed.",
+    "home": "Back to home"
   }
 }

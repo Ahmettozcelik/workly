@@ -3,7 +3,7 @@ import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
-import { AXE_TAGS, expect, test } from "./support";
+import { AXE_TAGS, expect, test, THEME_KEY } from "./support";
 
 type Messages = { [key: string]: string | Messages };
 const LOCALES = ["tr", "en"] as const;
@@ -305,13 +305,86 @@ test.describe("metadata", () => {
   });
 });
 
+// Unmatched URLs get the prerendered, bilingual app/not-found.tsx.
+test.describe("404 page", () => {
+  test.use({ expectNotFoundDocument: true });
+
+  test("is fully server-rendered in both languages with a 404 status", async ({ request }) => {
+    for (const path of ["/tr/does-not-exist", "/en/does-not-exist", "/tr/a/b/c"]) {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(404);
+      const html = await response.text();
+      // A real document, not Next.js's client-rendered error shell.
+      expect(html, path).not.toContain("__next_error__");
+      expect(html, path).toMatch(/<html lang="tr"/);
+      expect(html, path).toContain('rel="stylesheet"');
+      expect(html, path).toContain("<title>Sayfa bulunamadı · Page not found</title>");
+      expect(html, path).toMatch(/<h1[^>]*>Sayfa bulunamadı<\/h1>/);
+      expect(html, path).toMatch(/<section lang="en"[^>]*>[\s\S]*<h2[^>]*>Page not found<\/h2>/);
+      expect(html, path).toMatch(/<meta name="robots" content="noindex"\/>/);
+    }
+  });
+
+  test("shows both languages, each linking to its home page", async ({ page }) => {
+    await page.goto("/en/does-not-exist");
+    await expect(page.locator("html")).toHaveAttribute("lang", "tr");
+    await expect(page.getByRole("heading", { level: 1, name: "Sayfa bulunamadı" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Ana sayfaya dön" })).toHaveAttribute("href", "/tr");
+
+    const english = page.locator('section[lang="en"]');
+    await expect(english.getByRole("heading", { level: 2, name: "Page not found" })).toBeVisible();
+    await expect(english.getByRole("link", { name: "Back to home" })).toHaveAttribute("href", "/en");
+  });
+
+  test("unprefixed unknown URLs redirect to a locale, then 404", async ({ page }) => {
+    const response = await page.goto("/does-not-exist");
+    await expect(page).toHaveURL("/tr/does-not-exist");
+    expect(response?.status()).toBe(404);
+  });
+
+  test("applies the stored theme", async ({ page }) => {
+    await page.addInitScript((key) => localStorage.setItem(key, "dark"), THEME_KEY);
+    await page.goto("/tr/does-not-exist");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  });
+
+  test("has no horizontal overflow at 320px", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto("/tr/does-not-exist");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  for (const scheme of ["light", "dark"] as const) {
+    test(`has no axe violations in the ${scheme} theme`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("/tr/does-not-exist");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
+      const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+      expect(results.violations).toEqual([]);
+    });
+  }
+});
+
 test.describe("design system in production", () => {
+  test.use({ expectNotFoundDocument: true });
+
   test("stays unavailable in both languages", async ({ request }) => {
     const redirect = await request.get("/design-system", { maxRedirects: 0 });
     expect(redirect.status()).toBe(307);
     expect(redirect.headers()["location"]).toBe("/tr/design-system");
     for (const path of ["/tr/design-system", "/en/design-system"]) {
       expect((await request.get(path)).status(), path).toBe(404);
+    }
+  });
+
+  // notFound() inside a page: Next.js sends an error shell and the localized
+  // [locale]/not-found.tsx renders on the client.
+  test("shows the localized 404 in the browser", async ({ page }) => {
+    for (const [path, title] of [["/tr/design-system", "Sayfa bulunamadı"], ["/en/design-system", "Page not found"]]) {
+      await page.goto(path);
+      await expect(page.locator("html"), path).toHaveAttribute("lang", path.slice(1, 3));
+      await expect(page.getByRole("heading", { level: 1, name: title }), path).toBeVisible();
     }
   });
 });

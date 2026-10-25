@@ -100,5 +100,10 @@
       "light": "Açık tema seçildi",
       "dark": "Koyu tema seçildi"
     }
+  },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "description": "Aradığın sayfa taşınmış veya hiç var olmamış olabilir.",
+    "home": "Ana sayfaya dön"
   }
 }

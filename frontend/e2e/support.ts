@@ -6,12 +6,27 @@ import { test as base, expect, type Page } from "@playwright/test";
 // Shared by the page specs. Not a spec itself (no .spec suffix).
 
 // Every test fails if the page logs a console error or throws.
-export const test = base.extend<{ consoleGuard: void }>({
+// Tests that open 404 pages on purpose set expectNotFoundDocument: the browser
+// logs "Failed to load resource" for the 404 document itself, which is then
+// ignored; a 404 for any other resource still fails the test.
+export const test = base.extend<{ consoleGuard: void; expectNotFoundDocument: boolean }>({
+  expectNotFoundDocument: [false, { option: true }],
   consoleGuard: [
-    async ({ page }, use) => {
+    async ({ page, expectNotFoundDocument }, use) => {
       const problems: string[] = [];
+      const notFoundDocuments = new Set<string>();
+      page.on("response", (response) => {
+        if (response.status() === 404 && response.request().resourceType() === "document") {
+          notFoundDocuments.add(response.url());
+        }
+      });
       page.on("console", (message) => {
-        if (message.type() === "error") problems.push(message.text());
+        if (message.type() !== "error") return;
+        const isExpected404 =
+          expectNotFoundDocument &&
+          message.text().startsWith("Failed to load resource:") &&
+          notFoundDocuments.has(message.location().url);
+        if (!isExpected404) problems.push(message.text());
       });
       page.on("pageerror", (error) => problems.push(error.message));
       await use();
