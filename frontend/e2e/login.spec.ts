@@ -311,7 +311,7 @@ test.describe("login responsive", () => {
 test.describe("login keeps credentials out of the browser", () => {
   test.use({ expectApiErrors: true });
 
-  test("no storage after a failure or a success; only the CSRF cookie", async ({ page, context }) => {
+  test("no storage after a failure or a success; only the server's cookies", async ({ page, context }) => {
     await mockAuthApi(page, { login: [INVALID_CREDENTIALS, { status: 200, body: mockUser() }] });
     await page.goto("/tr/login");
     const c = COPY.tr;
@@ -324,13 +324,16 @@ test.describe("login keeps credentials out of the browser", () => {
     await submitButton(page, c).click();
     await expect(page).toHaveURL(c.feedPath);
 
-    // The session cookie is the server's (HttpOnly, not mocked here); the page
-    // itself stores nothing.
-    expect((await context.cookies()).map((cookie) => cookie.name)).toEqual(["XSRF-TOKEN"]);
+    // Only the cookies the server set: the CSRF token and the HttpOnly session
+    // (not readable by scripts). The page itself stores nothing.
+    const cookies = await context.cookies();
+    expect(cookies.map((cookie) => cookie.name).sort()).toEqual(["WORKLY_SESSION", "XSRF-TOKEN"]);
+    expect(cookies.find((cookie) => cookie.name === "WORKLY_SESSION")?.httpOnly).toBe(true);
     const storage = await page.evaluate(() => ({
       local: Object.keys(localStorage),
       session: Object.keys(sessionStorage),
+      cookie: document.cookie,
     }));
-    expect(storage).toEqual({ local: [], session: [] });
+    expect(storage).toEqual({ local: [], session: [], cookie: expect.not.stringContaining("WORKLY_SESSION") });
   });
 });
