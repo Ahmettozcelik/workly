@@ -1,6 +1,7 @@
 package com.workly.web;
 
 import com.workly.auth.EmailAlreadyRegisteredException;
+import com.workly.auth.InvalidVerificationTokenException;
 import com.workly.auth.RateLimitedException;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -55,6 +56,11 @@ class ApiExceptionHandler {
 	@ExceptionHandler(EmailAlreadyRegisteredException.class)
 	ResponseEntity<ApiError.Body> emailTaken() {
 		return ApiError.EMAIL_TAKEN.toResponse();
+	}
+
+	@ExceptionHandler(InvalidVerificationTokenException.class)
+	ResponseEntity<ApiError.Body> invalidVerificationToken() {
+		return ApiError.VERIFICATION_TOKEN_INVALID.toResponse();
 	}
 
 	/** Too many attempts. Retry-After: whole seconds until the client may try again (at least 1). */

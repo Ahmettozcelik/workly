@@ -51,9 +51,19 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Catches the backend's mails (SMTP 1025); the tests read them through
+      # its HTTP API (8025), e.g. to open a verification link.
+      mailpit:
+        image: axllent/mailpit:v1.27
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       # Read by application.yml (datasource localhost:5432/workly).
       DB_PASSWORD: workly-ci
+      # Mailed links point to the frontend under test (mail goes to localhost:1025 by default).
+      APP_BASE_URL: http://localhost:3100
+      MAILPIT_URL: http://localhost:8025
       # Public test origin, not a secret: canonical URLs are written at build time.
       SITE_URL: http://localhost:3100
       # The real backend started below. The /api rewrite is fixed at build

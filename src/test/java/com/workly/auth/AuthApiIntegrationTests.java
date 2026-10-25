@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.workly.MailTestConfiguration;
 import com.workly.TestcontainersConfiguration;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -36,7 +37,7 @@ import org.springframework.test.web.servlet.ResultActions;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({ TestcontainersConfiguration.class, MailTestConfiguration.class })
 class AuthApiIntegrationTests {
 
 	private static final String PASSWORD = "correct horse 1";

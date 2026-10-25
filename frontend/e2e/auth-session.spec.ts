@@ -38,7 +38,7 @@ test.describe("protected feed", () => {
     // Header avatar uses the same name (in the DOM; hidden on small screens).
     await expect(page.getByRole("banner").locator(`[role="img"][aria-label="${SIGNED_IN.name}"]`)).toBeAttached();
     // Unverified member: no badge. No sample member or sample profile numbers.
-    await expect(page.getByText("İş e-postası doğrulandı")).toHaveCount(0);
+    await expect(page.getByText("E-posta doğrulandı")).toHaveCount(0);
     await expect(page.getByText("Ayşe Yılmaz")).toHaveCount(0);
     await expect(page.getByText("Profil görüntülenme")).toHaveCount(0);
   });
@@ -46,7 +46,7 @@ test.describe("protected feed", () => {
   test("a verified member sees the verified badge", async ({ page, context, baseURL }) => {
     await signIn(context, baseURL!, "verified");
     await page.goto("/tr/feed");
-    await expect(profile(page).getByText("İş e-postası doğrulandı")).toBeVisible();
+    await expect(profile(page).getByText("E-posta doğrulandı")).toBeVisible();
   });
 
   test("the browser never sees the session cookie or stores anything", async ({ page, context, baseURL }) => {

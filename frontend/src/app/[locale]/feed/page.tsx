@@ -12,6 +12,7 @@ import { PostComposer } from "./post-composer";
 import { ProfileSummary } from "./profile-summary";
 import { JobRecommendations, Trending } from "./side-panels";
 import { SuggestedConnections } from "./suggested-connections";
+import { VerifyEmailBanner } from "./verify-email-banner";
 
 // A signed-in member's page: not indexed, so no canonical or hreflang.
 export async function generateMetadata({
@@ -60,6 +61,7 @@ function Feed({ user }: { user: ApiUser }) {
       }
     >
       <h1 className="sr-only">{t("title")}</h1>
+      {!user.emailVerified && <VerifyEmailBanner email={user.email} />}
       <PostComposer viewerName={user.displayName} />
       <FeedItems />
     </AppShell>

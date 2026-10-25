@@ -10,6 +10,18 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
+  mail:
+    # Required, no defaults: MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD.
+    # Authenticated SMTP over STARTTLS only (no plain-text fallback).
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+
   web:
     # Boot's /error fallback: status and a generic reason only. (Boot 4 name;
     # the old server.error.* properties are no longer bound.)
@@ -29,6 +41,15 @@ server:
   forward-headers-strategy: native
 
 workly:
+  auth:
+    verification:
+      # Required, https only: the public frontend origin used in mailed links.
+      base-url: ${APP_BASE_URL}
+
+  mail:
+    # Required: the sender address (on a domain with SPF/DKIM/DMARC set up).
+    from: ${MAIL_FROM}
+
   session:
     # HTTPS only: WORKLY_SESSION and XSRF-TOKEN get the Secure attribute.
     # ProductionSettingsCheck refuses to start if this is overridden.

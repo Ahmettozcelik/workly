@@ -89,6 +89,26 @@
       "submit": "Çıkış yap",
       "submitting": "Çıkış yapılıyor",
       "error": "Çıkış yapılamadı. Lütfen tekrar dene."
+    },
+    "verifyEmail": {
+      "meta": {
+        "title": "E-postanı doğrula"
+      },
+      "title": "E-postanı doğrula",
+      "subtitle": "Workly hesabının e-posta adresini doğrulamak için butona bas.",
+      "confirm": "E-postamı doğrula",
+      "confirming": "Doğrulanıyor",
+      "success": {
+        "title": "E-postan doğrulandı",
+        "body": "Teşekkürler, hesabının e-posta adresi artık doğrulanmış."
+      },
+      "invalid": {
+        "title": "Bu bağlantı geçersiz ya da süresi dolmuş",
+        "bodySignedIn": "Bağlantı yalnızca bir kez ve 24 saat içinde kullanılabilir. Akış sayfasından yeni bir bağlantı isteyebilirsin.",
+        "bodySignedOut": "Bağlantı yalnızca bir kez ve 24 saat içinde kullanılabilir. Giriş yaptıktan sonra akış sayfasından yeni bir bağlantı isteyebilirsin."
+      },
+      "toFeed": "Akışa git",
+      "toLogin": "Giriş yap"
     }
   },
   "theme": {
@@ -141,7 +161,17 @@
     },
     "asideLabel": "Öneriler ve gündem",
     "profile": {
-      "verified": "İş e-postası doğrulandı"
+      "verified": "E-posta doğrulandı"
+    },
+    "verifyBanner": {
+      "title": "E-postanı doğrula",
+      "body": "{email} adresine bir doğrulama bağlantısı gönderdik. Bağlantıyı açıp sayfadaki butona bas.",
+      "resend": "Bağlantıyı tekrar gönder",
+      "resending": "Gönderiliyor",
+      "sent": {
+        "title": "Yeni bağlantı gönderildi",
+        "body": "Gelen kutunu kontrol et. Eski bağlantılar artık çalışmaz."
+      }
     },
     "composer": {
       "heading": "Gönderi oluştur",

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "../e2e/support";
 
 // Authentication end to end: browser → Next.js (/api rewrite, server-side
@@ -61,6 +61,52 @@ test("register → feed → logout → login → feed → logout", async ({ page
   await logOut(page);
   await page.goto("/tr/feed");
   await expect(page).toHaveURL("/tr/login");
+});
+
+// Mailpit's HTTP API (CI: the mailpit service in fullstack-e2e.yml). The
+// backend's mailed links must point to this frontend (APP_BASE_URL).
+const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://localhost:8025";
+
+// The verification link from the last mail Mailpit received for this address.
+async function mailedVerificationLink(request: APIRequestContext, email: string) {
+  const search = `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`;
+  let id: string | undefined;
+  await expect
+    .poll(async () => {
+      const found = (await (await request.get(search)).json()) as { messages: { ID: string }[] };
+      id = found.messages[0]?.ID;
+      return id;
+    }, { message: `a mail to ${email} in Mailpit`, timeout: 15_000 })
+    .toBeTruthy();
+  const message = (await (await request.get(`${MAILPIT_URL}/api/v1/message/${id}`)).json()) as { Text: string };
+  const link = message.Text.match(/https?:\/\/\S+\/tr\/verify-email\?token=[A-Za-z0-9_-]+/)?.[0];
+  expect(link, "verification link in the mail").toBeTruthy();
+  return link!;
+}
+
+test("the mailed link verifies the email", async ({ page, request }) => {
+  const member = newMember();
+  const banner = page.getByRole("region", { name: "E-postanı doğrula" });
+
+  await page.goto("/tr/register");
+  await page.getByRole("textbox", { name: "Ad Soyad" }).fill(member.displayName);
+  await emailField(page).fill(member.email);
+  await passwordField(page).fill(member.password);
+  await page.getByRole("button", { name: "Hesap oluştur" }).click();
+  await expectFeedOf(page, member);
+  await expect(banner).toContainText(member.email);
+  await expect(profile(page, member).getByText("E-posta doğrulandı")).toHaveCount(0);
+
+  const link = await mailedVerificationLink(request, member.email);
+  expect(new URL(link).origin, "the link points to this frontend").toBe(new URL(page.url()).origin);
+  await page.goto(link);
+  await page.getByRole("button", { name: "E-postamı doğrula" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "E-postan doğrulandı" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Akışa git" }).click();
+  await expectFeedOf(page, member);
+  await expect(profile(page, member).getByText("E-posta doğrulandı")).toBeVisible();
+  await expect(banner).toHaveCount(0);
 });
 
 test("pages get the frontend's security headers, /api keeps the backend's own", async ({ request }) => {

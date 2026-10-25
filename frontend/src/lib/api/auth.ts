@@ -20,3 +20,15 @@ export function register(input: { displayName: string; email: string; password: 
 export function login(input: { email: string; password: string }) {
   return postJson<ApiUser>("/api/auth/login", input);
 }
+
+// Confirms a mailed verification link (204; no session needed).
+// Errors: VERIFICATION_TOKEN_INVALID (400: unknown, used or expired), VALIDATION_FAILED (400).
+export function verifyEmail(token: string) {
+  return postJson<void>("/api/auth/verify-email", { token });
+}
+
+// Mails the signed-in member a new verification link (204; nothing if already verified).
+// Errors: RATE_LIMITED (429, with Retry-After), UNAUTHENTICATED (401).
+export function resendVerificationEmail() {
+  return postJson<void>("/api/auth/verification-email", {});
+}

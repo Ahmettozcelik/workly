@@ -45,4 +45,9 @@ public final class AuthRequests {
 			@NotBlank(message = "REQUIRED") String email,
 			@NotEmpty(message = "REQUIRED") String password) {
 	}
+
+	/** The token from a verification link (43 characters; a little slack, no more). */
+	public record VerifyEmail(
+			@NotBlank(message = "REQUIRED") @Size(max = 100, message = "TOO_LONG") String token) {
+	}
 }

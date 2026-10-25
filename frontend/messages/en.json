@@ -89,6 +89,26 @@
       "submit": "Sign out",
       "submitting": "Signing out",
       "error": "Couldn't sign out. Please try again."
+    },
+    "verifyEmail": {
+      "meta": {
+        "title": "Verify your email"
+      },
+      "title": "Verify your email",
+      "subtitle": "Press the button to verify the email address of your Workly account.",
+      "confirm": "Verify my email",
+      "confirming": "Verifying",
+      "success": {
+        "title": "Your email is verified",
+        "body": "Thanks, the email address of your account is now verified."
+      },
+      "invalid": {
+        "title": "This link is invalid or has expired",
+        "bodySignedIn": "A link works once and only within 24 hours. You can ask for a new one on your feed.",
+        "bodySignedOut": "A link works once and only within 24 hours. After signing in, you can ask for a new one on your feed."
+      },
+      "toFeed": "Go to your feed",
+      "toLogin": "Sign in"
     }
   },
   "theme": {
@@ -141,7 +161,17 @@
     },
     "asideLabel": "Suggestions and trends",
     "profile": {
-      "verified": "Work email verified"
+      "verified": "Email verified"
+    },
+    "verifyBanner": {
+      "title": "Verify your email",
+      "body": "We sent a verification link to {email}. Open it and press the button on the page.",
+      "resend": "Send the link again",
+      "resending": "Sending",
+      "sent": {
+        "title": "New link sent",
+        "body": "Check your inbox. Earlier links no longer work."
+      }
     },
     "composer": {
       "heading": "Create a post",
