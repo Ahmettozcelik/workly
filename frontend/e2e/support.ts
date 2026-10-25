@@ -94,9 +94,9 @@ export const mockUser = (locale: "tr" | "en" = "tr") => ({
   emailVerified: false,
 });
 
-// A reply: a status with a JSON body (problem details for errors), or "abort"
-// for a network failure.
-export type MockReply = { status: number; body?: unknown } | "abort";
+// A reply: a status with a JSON body (problem details for errors) and optional
+// extra headers (e.g. Retry-After), or "abort" for a network failure.
+export type MockReply = { status: number; body?: unknown; headers?: Record<string, string> } | "abort";
 
 export type ApiCall = { path: string; csrfToken: string | undefined; body: unknown };
 
@@ -134,16 +134,24 @@ export async function mockAuthApi(
       return route.fulfill({
         status: reply.status,
         contentType: reply.status >= 400 ? "application/problem+json" : "application/json",
-        headers:
-          reply.status < 300
+        headers: {
+          ...(reply.status < 300
             ? { "set-cookie": `${SESSION_COOKIE}=valid-${locale}; Path=/; HttpOnly; SameSite=Lax` }
-            : {},
+            : {}),
+          ...reply.headers,
+        },
         body: JSON.stringify(reply.body ?? {}),
       });
     });
   }
   return calls;
 }
+
+// 429 RATE_LIMITED, as the backend sends it; Retry-After in seconds unless omitted.
+export const rateLimited = (retryAfterSeconds?: number): MockReply => ({
+  ...problem(429, "RATE_LIMITED"),
+  ...(retryAfterSeconds === undefined ? {} : { headers: { "retry-after": String(retryAfterSeconds) } }),
+});
 
 // A problem-details error body, as the backend sends it.
 export const problem = (status: number, code: string, errors?: { field: string; code: string }[]) => ({

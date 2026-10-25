@@ -27,11 +27,14 @@ class AuthController {
 	private final AuthService authService;
 	private final SessionLogin sessionLogin;
 	private final UserRepository users;
+	private final AddressRateLimits addressRateLimits;
 
-	AuthController(AuthService authService, SessionLogin sessionLogin, UserRepository users) {
+	AuthController(AuthService authService, SessionLogin sessionLogin, UserRepository users,
+			AddressRateLimits addressRateLimits) {
 		this.authService = authService;
 		this.sessionLogin = sessionLogin;
 		this.users = users;
+		this.addressRateLimits = addressRateLimits;
 	}
 
 	/** Issues the XSRF-TOKEN cookie that every state-changing request must echo. */
@@ -41,18 +44,21 @@ class AuthController {
 		return ResponseEntity.noContent().build();
 	}
 
-	/** Creates the account and signs the new member in. */
+	/** Creates the account and signs the new member in. 429 RATE_LIMITED: too many from this address. */
 	@PostMapping("/register")
 	ResponseEntity<UserResponse> register(@Valid @RequestBody AuthRequests.Register body, HttpServletRequest request,
 			HttpServletResponse response) {
+		addressRateLimits.checkRegister(request);
 		var user = authService.register(body);
 		sessionLogin.logIn(user, request, response);
 		return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.of(user));
 	}
 
+	/** 429 RATE_LIMITED: too many attempts from this address, or this email is blocked for a while. */
 	@PostMapping("/login")
 	UserResponse login(@Valid @RequestBody AuthRequests.Login body, HttpServletRequest request,
 			HttpServletResponse response) {
+		addressRateLimits.checkLogin(request);
 		var user = authService.authenticate(body);
 		sessionLogin.logIn(user, request, response);
 		return UserResponse.of(user);

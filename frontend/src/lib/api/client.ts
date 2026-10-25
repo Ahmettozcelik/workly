@@ -11,11 +11,13 @@ export type ApiFieldError = { field: string; code: string };
 // A failed request. `code` is the API's machine-readable code (EMAIL_TAKEN,
 // VALIDATION_FAILED, ...), NETWORK_ERROR when there was no response, or
 // UNEXPECTED for a response without a code. Never show server text to users.
+// retryAfterSeconds: from Retry-After (RATE_LIMITED), when the API sent it.
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
     readonly fieldErrors: ApiFieldError[] = [],
+    readonly retryAfterSeconds?: number,
   ) {
     super(code);
     this.name = "ApiError";
@@ -63,7 +65,10 @@ async function toApiError(response: Response) {
   } catch {
     // Not a problem-details body (e.g. a proxy error page).
   }
-  return new ApiError(response.status, code, fieldErrors);
+  // The API sends whole seconds; an HTTP date or anything else is ignored.
+  const retryAfter = Number(response.headers.get("Retry-After"));
+  const retryAfterSeconds = Number.isInteger(retryAfter) && retryAfter > 0 ? retryAfter : undefined;
+  return new ApiError(response.status, code, fieldErrors, retryAfterSeconds);
 }
 
 // POSTs JSON with the CSRF token. A rejected token (it rotates on sign-in) is

@@ -27,6 +27,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * The auth API end to end inside the application: real PostgreSQL
@@ -268,6 +269,138 @@ class AuthApiIntegrationTests {
 		BrowserClient attacker = new BrowserClient(mvc);
 		attacker.setCookie(SESSION_COOKIE, sessionBefore);
 		attacker.get("/api/auth/me").andExpect(status().isUnauthorized());
+	}
+
+	// --- Attempt limits (workly.auth.throttle in application.yml) ---------
+
+	private static final int MAX_FAILURES_PER_EMAIL = 5;
+	private static final int MAX_LOGINS_PER_ADDRESS = 20;
+	private static final int MAX_REGISTRATIONS_PER_ADDRESS = 10;
+
+	/** Failed sign-ins, each from a new address (so only the per-email limit applies). */
+	private void failLogins(String email, int times) throws Exception {
+		for (int i = 0; i < times; i++) {
+			new BrowserClient(mvc).post("/api/auth/login", loginJson(email, "wrong password"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+		}
+	}
+
+	private static long retryAfterSeconds(ResultActions result) {
+		return Long.parseLong(result.andReturn().getResponse().getHeader(HttpHeaders.RETRY_AFTER));
+	}
+
+	/** Moves an email's throttle row back in time, as if that much time had passed. */
+	private void timePasses(String email, String interval) {
+		jdbc.update("""
+				UPDATE login_throttle
+				SET window_started_at = window_started_at - CAST(? AS INTERVAL),
+				    blocked_until = blocked_until - CAST(? AS INTERVAL)
+				WHERE email_hash = ?""", interval, interval, LoginThrottle.hash(email));
+	}
+
+	@Test
+	void repeatedFailedSignInsBlockTheEmailEvenWithTheRightPassword() throws Exception {
+		String email = register(uniqueEmail());
+		failLogins(email, MAX_FAILURES_PER_EMAIL);
+
+		BrowserClient member = new BrowserClient(mvc);
+		ResultActions blocked = member.post("/api/auth/login", loginJson(" " + email.toUpperCase(), PASSWORD))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+			.andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+		assertThat(retryAfterSeconds(blocked)).isBetween(1L, 15 * 60L);
+		assertThat(member.cookie(SESSION_COOKIE)).isNull();
+
+		// Only this email: another member signs in as usual.
+		String other = register(uniqueEmail());
+		new BrowserClient(mvc).post("/api/auth/login", loginJson(other, PASSWORD)).andExpect(status().isOk());
+	}
+
+	@Test
+	void unknownEmailsAreBlockedTheSameWay() throws Exception {
+		String member = register(uniqueEmail());
+		String unknown = uniqueEmail();
+		failLogins(member, MAX_FAILURES_PER_EMAIL);
+		failLogins(unknown, MAX_FAILURES_PER_EMAIL);
+
+		String memberBody = new BrowserClient(mvc).post("/api/auth/login", loginJson(member, PASSWORD))
+			.andExpect(status().isTooManyRequests())
+			.andReturn().getResponse().getContentAsString();
+		String unknownBody = new BrowserClient(mvc).post("/api/auth/login", loginJson(unknown, PASSWORD))
+			.andExpect(status().isTooManyRequests())
+			.andReturn().getResponse().getContentAsString();
+		assertThat(unknownBody).isEqualTo(memberBody);
+		// Stored by hash only, never the typed email.
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM login_throttle WHERE email_hash = ?", Integer.class,
+				LoginThrottle.hash(unknown))).isEqualTo(1);
+	}
+
+	@Test
+	void theBlockEndsAndASuccessfulSignInStartsOver() throws Exception {
+		String email = register(uniqueEmail());
+		failLogins(email, MAX_FAILURES_PER_EMAIL);
+		timePasses(email, "16 minutes");
+
+		new BrowserClient(mvc).post("/api/auth/login", loginJson(email, PASSWORD)).andExpect(status().isOk());
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM login_throttle WHERE email_hash = ?", Integer.class,
+				LoginThrottle.hash(email))).isZero();
+	}
+
+	@Test
+	void aSuccessfulSignInResetsTheCount() throws Exception {
+		String email = register(uniqueEmail());
+		failLogins(email, MAX_FAILURES_PER_EMAIL - 1);
+		new BrowserClient(mvc).post("/api/auth/login", loginJson(email, PASSWORD)).andExpect(status().isOk());
+
+		failLogins(email, MAX_FAILURES_PER_EMAIL - 1);
+		new BrowserClient(mvc).post("/api/auth/login", loginJson(email, PASSWORD)).andExpect(status().isOk());
+	}
+
+	@Test
+	void failuresAfterTheWindowStartANewCount() throws Exception {
+		String email = register(uniqueEmail());
+		failLogins(email, MAX_FAILURES_PER_EMAIL - 1);
+		timePasses(email, "16 minutes");
+		failLogins(email, MAX_FAILURES_PER_EMAIL - 1);
+
+		assertThat(jdbc.queryForObject("SELECT failed_attempts FROM login_throttle WHERE email_hash = ?",
+				Integer.class, LoginThrottle.hash(email))).isEqualTo(MAX_FAILURES_PER_EMAIL - 1);
+		new BrowserClient(mvc).post("/api/auth/login", loginJson(email, PASSWORD)).andExpect(status().isOk());
+	}
+
+	@Test
+	void tooManySignInsFromOneAddressAreRejected() throws Exception {
+		BrowserClient device = new BrowserClient(mvc);
+		for (int i = 0; i < MAX_LOGINS_PER_ADDRESS; i++) {
+			device.post("/api/auth/login", loginJson(uniqueEmail(), PASSWORD)).andExpect(status().isUnauthorized());
+		}
+		ResultActions limited = device.post("/api/auth/login", loginJson(uniqueEmail(), PASSWORD))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+		assertThat(retryAfterSeconds(limited)).isBetween(1L, 60L);
+
+		// Other addresses are not affected.
+		new BrowserClient(mvc).post("/api/auth/login", loginJson(uniqueEmail(), PASSWORD))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+	}
+
+	@Test
+	void tooManyRegistrationsFromOneAddressAreRejected() throws Exception {
+		String address = BrowserClient.nextAddress();
+		for (int i = 0; i < MAX_REGISTRATIONS_PER_ADDRESS; i++) {
+			new BrowserClient(mvc, address)
+				.post("/api/auth/register", registerJson("Ali Veli", uniqueEmail(), PASSWORD, "tr"))
+				.andExpect(status().isCreated());
+		}
+		String email = uniqueEmail();
+		ResultActions limited = new BrowserClient(mvc, address)
+			.post("/api/auth/register", registerJson("Ali Veli", email, PASSWORD, "tr"))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+		assertThat(retryAfterSeconds(limited)).isBetween(1L, 60 * 60L);
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE email = ?", Integer.class, email)).isZero();
 	}
 
 	// --- Me and logout ----------------------------------------------------

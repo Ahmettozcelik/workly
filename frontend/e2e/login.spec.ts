@@ -8,6 +8,7 @@ import {
   mockAuthApi,
   mockUser,
   problem,
+  rateLimited,
   test,
 } from "./support";
 
@@ -33,6 +34,9 @@ const COPY = {
     failureTitle: "Giriş yapılamadı",
     failureBody: "E-posta adresi veya şifre hatalı. Lütfen tekrar dene.",
     genericTitle: "İşlemini şu anda tamamlayamadık",
+    rateLimitedTitle: "Çok fazla deneme yapıldı",
+    rateLimitedIn14: "14 dakika sonra tekrar dene.",
+    rateLimitedSoon: "Biraz sonra tekrar dene.",
     feedPath: "/tr/feed",
     theme: /^Tema:/,
     otherLanguage: "English",
@@ -56,6 +60,9 @@ const COPY = {
     failureTitle: "Couldn't sign in",
     failureBody: "The email or password you entered is incorrect. Please try again.",
     genericTitle: "We couldn't complete that right now",
+    rateLimitedTitle: "Too many attempts",
+    rateLimitedIn14: "Please try again in 14 min.",
+    rateLimitedSoon: "Please try again a little later.",
     feedPath: "/en/feed",
     theme: /^Theme:/,
     otherLanguage: "Türkçe",
@@ -222,6 +229,26 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
       await expect(failure).toHaveCount(0);
       release();
       await expect(alertWith(page, c.failureTitle)).toBeVisible();
+    });
+
+    test("too many attempts says how long to wait and keeps the input", async ({ page }) => {
+      // 781 s rounds up to 14 minutes; the second reply has no Retry-After.
+      await mockAuthApi(page, { login: [rateLimited(781), rateLimited()] });
+      await page.goto(c.path);
+      await emailField(page, c).fill("ali.yilmaz@example.com");
+      await passwordField(page).fill("secure-password");
+      await submitButton(page, c).click();
+
+      await expect(alertWith(page, c.rateLimitedTitle)).toContainText(c.rateLimitedIn14);
+      await expect(alertWith(page, c.failureTitle)).toHaveCount(0);
+      await expect(alertWith(page, c.genericTitle)).toHaveCount(0);
+      await expect(emailField(page, c)).toHaveValue("ali.yilmaz@example.com");
+      await expect(passwordField(page)).toHaveValue("secure-password");
+      await expect(submitButton(page, c)).toBeEnabled();
+
+      await submitButton(page, c).click();
+      await expect(alertWith(page, c.rateLimitedTitle)).toContainText(c.rateLimitedSoon);
+      await expect(alertWith(page, c.rateLimitedTitle)).not.toContainText("14");
     });
 
     for (const [label, reply] of [

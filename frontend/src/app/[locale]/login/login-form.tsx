@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { PasswordInput } from "@/components/auth/password-input";
+import { RateLimitedAlert } from "@/components/auth/rate-limited-alert";
 import { validateEmail } from "@/components/auth/validation";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +21,9 @@ type FieldErrors = {
   password?: "errorEmpty";
 };
 // failure: wrong credentials (one generic message, so the response never
-// reveals whether an account exists). error: network or server problem.
-type Status = "editing" | "submitting" | "failure" | "error";
+// reveals whether an account exists). rateLimited: too many attempts (429).
+// error: network or server problem.
+type Status = "editing" | "submitting" | "failure" | "rateLimited" | "error";
 
 function validate(email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
@@ -43,6 +45,7 @@ export function LoginForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [attempted, setAttempted] = useState(false);
   const [status, setStatus] = useState<Status>("editing");
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number>();
 
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -76,6 +79,9 @@ export function LoginForm() {
         setPassword("");
         setShowPassword(false);
         setStatus("failure");
+      } else if (error instanceof ApiError && error.code === "RATE_LIMITED") {
+        setRetryAfterSeconds(error.retryAfterSeconds);
+        setStatus("rateLimited");
       } else {
         setStatus("error");
       }
@@ -101,6 +107,9 @@ export function LoginForm() {
           <Alert variant="danger" title={t("failure.title")}>
             {t("failure.body")}
           </Alert>
+        )}
+        {status === "rateLimited" && !hasErrors && (
+          <RateLimitedAlert retryAfterSeconds={retryAfterSeconds} />
         )}
         {status === "error" && !hasErrors && (
           <Alert variant="danger" title={tCommon("errorGeneric.title")}>

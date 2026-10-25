@@ -19,6 +19,11 @@
     "errorGeneric": {
       "title": "İşlemini şu anda tamamlayamadık",
       "body": "Bağlantını kontrol edip biraz sonra tekrar dene."
+    },
+    "errorRateLimited": {
+      "title": "Çok fazla deneme yapıldı",
+      "body": "Güvenliğin için bu işlemi kısa bir süre durdurduk. {minutes} dakika sonra tekrar dene.",
+      "bodySoon": "Güvenliğin için bu işlemi kısa bir süre durdurduk. Biraz sonra tekrar dene."
     }
   },
   "prototype": {
