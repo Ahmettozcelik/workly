@@ -1,0 +1,129 @@
+name: Full-stack E2E
+
+# The frontend against the real Spring Boot API and PostgreSQL (no mock
+# backend). Frontend CI and Backend CI stay the fast checks of each side.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "pom.xml"
+      - "mvnw"
+      - ".mvn/**"
+      - "src/**"
+      - ".github/workflows/fullstack-e2e.yml"
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "pom.xml"
+      - "mvnw"
+      - ".mvn/**"
+      - "src/**"
+      - ".github/workflows/fullstack-e2e.yml"
+  workflow_dispatch:
+
+# A new push to a PR cancels its previous run; runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  fullstack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # A throwaway database for this run only. The password is a CI-only test
+    # value, not a secret: the database is reachable from the runner alone.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: workly
+          POSTGRES_USER: workly
+          POSTGRES_PASSWORD: workly-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U workly -d workly"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Read by application.yml (datasource localhost:5432/workly).
+      DB_PASSWORD: workly-ci
+      # Public test origin, not a secret: canonical URLs are written at build time.
+      SITE_URL: http://localhost:3100
+      # The real backend started below. The /api rewrite is fixed at build
+      # time, so the frontend build needs it too.
+      BACKEND_URL: http://localhost:8080
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      # Tests run in Backend CI; this job only needs the application JAR.
+      - run: ./mvnw -B -ntp package -DskipTests
+
+      # Flyway migrates the empty database on startup. The log is kept for
+      # the failure artifact.
+      - name: Start backend
+        run: |
+          nohup java -jar target/workly-*.jar > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: Wait for backend health
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
+              echo "Backend is up."
+              exit 0
+            fi
+            if ! kill -0 "$(cat backend.pid)" 2>/dev/null; then
+              echo "Backend exited during startup."
+              tail -n 100 backend.log
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Backend did not become healthy in 120 s."
+          tail -n 100 backend.log
+          exit 1
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - run: npm run build
+        working-directory: frontend
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      # E2E_PREBUILT: start the build above instead of building again.
+      - run: npm run test:e2e:fullstack
+        working-directory: frontend
+        env:
+          E2E_PREBUILT: "1"
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fullstack-e2e-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            backend.log
+          retention-days: 14
