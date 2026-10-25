@@ -10,6 +10,7 @@ import {
   mockUser,
   photoBehind,
   problem,
+  rateLimited,
   test,
   THEME_KEY,
   visiblePhoto,
@@ -237,6 +238,22 @@ test.describe("submission errors", () => {
       expect(new URL(page.url()).pathname).toBe("/tr/register");
     });
   }
+
+  test("too many registrations say how long to wait and keep the input", async ({ page }) => {
+    await mockAuthApi(page, { register: [rateLimited(3600)] });
+    await page.goto("/tr/register");
+    await fillValidForm(page);
+    await submitButton(page).click();
+
+    const limited = page.getByRole("alert").filter({ hasText: "Çok fazla deneme yapıldı" });
+    await expect(limited).toContainText("60 dakika sonra tekrar dene.");
+    await expect(genericError(page)).toHaveCount(0);
+    await expect(errorSummary(page)).toHaveCount(0);
+    await expect(emailField(page)).toHaveValue("ayse@example.com");
+    await expect(passwordField(page)).toHaveValue("guvenli-sifre");
+    await expect(submitButton(page)).toBeEnabled();
+    expect(new URL(page.url()).pathname).toBe("/tr/register");
+  });
 
   test("a rejected CSRF token is refreshed and the request retried once", async ({ page }) => {
     const calls = await mockAuthApi(page, {

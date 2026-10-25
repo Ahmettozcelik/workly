@@ -19,6 +19,11 @@
     "errorGeneric": {
       "title": "We couldn't complete that right now",
       "body": "Check your connection and try again in a moment."
+    },
+    "errorRateLimited": {
+      "title": "Too many attempts",
+      "body": "For your security, we've paused this for a short while. Please try again in {minutes} min.",
+      "bodySoon": "For your security, we've paused this for a short while. Please try again a little later."
     }
   },
   "prototype": {

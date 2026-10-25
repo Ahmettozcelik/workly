@@ -99,4 +99,26 @@ test.describe("wrong password", () => {
     await logIn(page, member.email, member.password);
     await expectFeedOf(page, member);
   });
+
+  test("five in a row block the email for a while, even with the right one", async ({ page }) => {
+    // An unknown email is limited the same way as a member's (LoginThrottle).
+    const email = newMember().email;
+    const loginResponse = () => page.waitForResponse((response) => response.url().endsWith("/api/auth/login"));
+    await page.goto("/tr/login");
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const failed = loginResponse();
+      await logIn(page, email, `wrong-${attempt}`);
+      expect((await failed).status()).toBe(401);
+      await expect(alertWith(page, "Giriş yapılamadı")).toBeVisible();
+    }
+
+    const limited = loginResponse();
+    await logIn(page, email, "any-password");
+    const response = await limited;
+    expect(response.status()).toBe(429);
+    // Retry-After reaches the browser through the Next.js proxy.
+    expect(Number(response.headers()["retry-after"])).toBeGreaterThan(14 * 60);
+    await expect(alertWith(page, "Çok fazla deneme yapıldı")).toContainText("15 dakika sonra tekrar dene.");
+    await expect(page).toHaveURL("/tr/login");
+  });
 });

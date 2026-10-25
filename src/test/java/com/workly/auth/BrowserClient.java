@@ -3,6 +3,7 @@ package com.workly.auth;
 import jakarta.servlet.http.Cookie;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -14,18 +15,38 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
  * MockMvc with a cookie jar, used like the frontend uses the API: it keeps the
  * session and XSRF-TOKEN cookies from Set-Cookie headers and echoes the CSRF
  * token in X-XSRF-TOKEN. No test shortcuts (csrf(), with(user())), so CSRF and
- * sessions are exercised for real.
+ * sessions are exercised for real. Each client has its own address, like a
+ * separate device, so the per-address limits of one test do not affect others.
  */
 class BrowserClient {
 
 	static final String SESSION_COOKIE = "WORKLY_SESSION";
 	static final String CSRF_COOKIE = "XSRF-TOKEN";
 
+	private static final AtomicInteger ADDRESSES = new AtomicInteger();
+
 	private final MockMvc mvc;
+	private final String address;
 	private final Map<String, String> cookies = new LinkedHashMap<>();
 
 	BrowserClient(MockMvc mvc) {
+		this(mvc, nextAddress());
+	}
+
+	/** A client at the given address, e.g. a second browser on the same network. */
+	BrowserClient(MockMvc mvc, String address) {
 		this.mvc = mvc;
+		this.address = address;
+	}
+
+	/** 10.x.y.z, unique per client in this JVM. */
+	static String nextAddress() {
+		int n = ADDRESSES.incrementAndGet();
+		return "10.%d.%d.%d".formatted((n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff);
+	}
+
+	String address() {
+		return address;
 	}
 
 	ResultActions get(String path) throws Exception {
@@ -58,6 +79,10 @@ class BrowserClient {
 	}
 
 	private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
+		request.with(each -> {
+			each.setRemoteAddr(address);
+			return each;
+		});
 		if (!cookies.isEmpty()) {
 			request.cookie(cookies.entrySet().stream()
 				.map(entry -> new Cookie(entry.getKey(), entry.getValue()))

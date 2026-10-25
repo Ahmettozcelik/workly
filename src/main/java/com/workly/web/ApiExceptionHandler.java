@@ -1,12 +1,14 @@
 package com.workly.web;
 
 import com.workly.auth.EmailAlreadyRegisteredException;
+import com.workly.auth.RateLimitedException;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.core.AuthenticationException;
@@ -53,6 +55,17 @@ class ApiExceptionHandler {
 	@ExceptionHandler(EmailAlreadyRegisteredException.class)
 	ResponseEntity<ApiError.Body> emailTaken() {
 		return ApiError.EMAIL_TAKEN.toResponse();
+	}
+
+	/** Too many attempts. Retry-After: whole seconds until the client may try again (at least 1). */
+	@ExceptionHandler(RateLimitedException.class)
+	ResponseEntity<ApiError.Body> rateLimited(RateLimitedException ex) {
+		long seconds = Math.max(1, (ex.retryAfter().toMillis() + 999) / 1000);
+		ResponseEntity<ApiError.Body> response = ApiError.RATE_LIMITED.toResponse();
+		return ResponseEntity.status(response.getStatusCode())
+			.headers(response.getHeaders())
+			.header(HttpHeaders.RETRY_AFTER, Long.toString(seconds))
+			.body(response.getBody());
 	}
 
 	/** Failed sign-in: one generic answer for unknown email and wrong password. */

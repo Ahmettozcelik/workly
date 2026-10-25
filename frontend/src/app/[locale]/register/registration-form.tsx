@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useRef, useState, type FormEvent } from "react";
 import { PasswordInput } from "@/components/auth/password-input";
+import { RateLimitedAlert } from "@/components/auth/rate-limited-alert";
 import {
   DISPLAY_NAME_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
@@ -71,6 +72,8 @@ export function RegistrationForm() {
   const [status, setStatus] = useState<Status>("editing");
   // Request failed for a reason the user cannot fix in a field (network, server).
   const [failed, setFailed] = useState(false);
+  // Too many registrations from this address (429); the wait in seconds, if known.
+  const [rateLimited, setRateLimited] = useState<{ retryAfterSeconds?: number } | null>(null);
 
   const refs = {
     displayName: useRef<HTMLInputElement>(null),
@@ -93,6 +96,7 @@ export function RegistrationForm() {
 
     setAttempted(true);
     setFailed(false);
+    setRateLimited(null);
     const nextErrors = validate(displayName, email, password);
     showErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -107,6 +111,10 @@ export function RegistrationForm() {
       setStatus("editing");
       if (error instanceof ApiError && error.code === "EMAIL_TAKEN") {
         showErrors({ email: "errorTaken" });
+        return;
+      }
+      if (error instanceof ApiError && error.code === "RATE_LIMITED") {
+        setRateLimited({ retryAfterSeconds: error.retryAfterSeconds });
         return;
       }
       const apiErrors = error instanceof ApiError ? fromApiErrors(error) : {};
@@ -141,6 +149,7 @@ export function RegistrationForm() {
             {tCommon("errorSummary.body")}
           </Alert>
         )}
+        {rateLimited && !hasErrors && <RateLimitedAlert retryAfterSeconds={rateLimited.retryAfterSeconds} />}
         {failed && !hasErrors && (
           <Alert variant="danger" title={tCommon("errorGeneric.title")}>
             {tCommon("errorGeneric.body")}

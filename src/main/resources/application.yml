@@ -24,7 +24,29 @@ spring:
       # The SPRING_SESSION tables come from Flyway (V2__create_spring_session.sql).
       initialize-schema: never
 
+server:
+  # Client address and scheme from X-Forwarded-* when the request comes from a
+  # trusted proxy (Tomcat's internal-proxies: localhost and private networks,
+  # i.e. the Next.js server). Used by the per-address limits (AddressRateLimits).
+  forward-headers-strategy: native
+
 workly:
+  auth:
+    throttle:
+      # Per email (unknown emails too): this many failed sign-ins within the
+      # window block sign-in for that email for the block duration (LoginThrottle).
+      login-email:
+        max-failures: 5
+        window: 15m
+        block: 15m
+      # Per client address, a second layer (AddressRateLimits).
+      login-address:
+        max-requests: 20
+        window: 1m
+      register-address:
+        max-requests: 10
+        window: 1h
+
   session:
     # Session cookie (WORKLY_SESSION, HttpOnly, SameSite=Lax; see SessionCookieConfig).
     # Must be true in production (HTTPS). False only for local http://localhost.
