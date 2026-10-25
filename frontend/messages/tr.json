@@ -49,7 +49,7 @@
       "submit": "Hesap oluştur",
       "submitting": "Hesap oluşturuluyor",
       "legal": "Devam ederek <terms>Kullanım Koşulları</terms>'nı kabul etmiş ve <privacy>Aydınlatma Metni</privacy>'ni okumuş olursun.",
-      "signInPrompt": "Zaten hesabın var mı? Giriş yap",
+      "signInPrompt": "Zaten hesabın var mı? <link>Giriş yap</link>",
       "success": {
         "title": "E-postanı kontrol et",
         "sentTo": "Doğrulama bağlantısını {email} adresine gönderdik.",

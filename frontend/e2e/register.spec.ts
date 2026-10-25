@@ -37,9 +37,18 @@ test.describe("structure", () => {
     await expect(passwordField(page)).toHaveAttribute("autocomplete", "new-password");
     await expect(passwordField(page)).toHaveAccessibleDescription("En az 8 karakter.");
     await expect(submitButton(page)).toBeVisible();
-    // Sign-in prompt is plain text for now (no login page yet).
+    // Sign-in prompt: only "Giriş yap" is a link, to the same-language login page.
     await expect(page.getByText("Zaten hesabın var mı? Giriş yap")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Giriş yap/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Giriş yap" })).toHaveAttribute("href", "/tr/login");
+  });
+
+  test("the sign-in link opens the login page", async ({ page }) => {
+    await page.goto("/tr/register");
+    await page.getByRole("link", { name: "Giriş yap" }).click();
+    await expect(page).toHaveURL("/tr/login");
+    await expect(page.getByRole("heading", { level: 1, name: "Tekrar hoş geldin" })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "tr");
+    // Console errors fail the test through the shared consoleGuard fixture.
   });
 });
 
@@ -138,6 +147,7 @@ test.describe("keyboard", () => {
       submitButton(page),
       page.getByRole("link", { name: "Kullanım Koşulları" }),
       page.getByRole("link", { name: "Aydınlatma Metni" }),
+      page.getByRole("link", { name: "Giriş yap" }),
     ];
     for (const target of expected) {
       await page.keyboard.press("Tab");

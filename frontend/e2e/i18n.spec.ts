@@ -104,6 +104,7 @@ test.describe("English register page", () => {
     await expect(submitButton(page)).toBeVisible();
     await expect(page.getByText("Required field")).toBeVisible();
     await expect(page.getByText("Already have an account? Sign in")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/en/login");
     await expect(page.locator("form p").last()).toHaveText(
       "By continuing, you agree to the Terms of Use and acknowledge that you have read our Privacy Notice.",
     );

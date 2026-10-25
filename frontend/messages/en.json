@@ -49,7 +49,7 @@
       "submit": "Create account",
       "submitting": "Creating account",
       "legal": "By continuing, you agree to the <terms>Terms of Use</terms> and acknowledge that you have read our <privacy>Privacy Notice</privacy>.",
-      "signInPrompt": "Already have an account? Sign in",
+      "signInPrompt": "Already have an account? <link>Sign in</link>",
       "success": {
         "title": "Check your email",
         "sentTo": "We've sent a verification link to {email}.",

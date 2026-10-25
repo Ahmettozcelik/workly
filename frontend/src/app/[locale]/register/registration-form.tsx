@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { Link } from "@/i18n/navigation";
 
 // Prototype only: no API call, no account, no email. Validation rules here are
 // placeholders, not the final security policy.
@@ -210,9 +211,17 @@ export function RegistrationForm() {
         </p>
       </form>
 
-      {/* Plain text until the sign-in screen exists. */}
       <p className="border-t border-line pt-5 text-center text-sm text-fg-muted">
-        {t("signInPrompt")}
+        {t.rich("signInPrompt", {
+          link: (chunks) => (
+            <Link
+              href="/login"
+              className="font-medium text-accent-text underline underline-offset-2"
+            >
+              {chunks}
+            </Link>
+          ),
+        })}
       </p>
     </div>
   );
