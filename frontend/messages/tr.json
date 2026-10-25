@@ -105,5 +105,80 @@
     "title": "Sayfa bulunamadı",
     "description": "Aradığın sayfa taşınmış veya hiç var olmamış olabilir.",
     "home": "Ana sayfaya dön"
+  },
+  "app": {
+    "skipToContent": "İçeriğe geç",
+    "comingSoon": "Yakında",
+    "prototypeBadge": "Prototip",
+    "search": "Kişi, iş veya konu ara",
+    "nav": {
+      "label": "Ana navigasyon",
+      "home": "Ana sayfa",
+      "network": "Ağım",
+      "jobs": "İşler",
+      "messages": "Mesajlar",
+      "notifications": "Bildirimler"
+    },
+    "comingSoonShort": "Yakında"
+  },
+  "feed": {
+    "meta": {
+      "title": "Akış"
+    },
+    "title": "Akış",
+    "asideLabel": "Öneriler ve gündem",
+    "profile": {
+      "verified": "İş e-postası doğrulandı",
+      "connections": "Bağlantı",
+      "profileViews": "Profil görüntülenme",
+      "completion": "Profilin %{percent} tamamlandı",
+      "nextStep": "Sıradaki adım: {step}",
+      "complete": "Profili tamamla"
+    },
+    "composer": {
+      "heading": "Gönderi oluştur",
+      "placeholder": "Ne paylaşmak istersin?"
+    },
+    "filter": {
+      "label": "Akışı filtrele",
+      "everyone": "Herkes",
+      "connections": "Bağlantılarım"
+    },
+    "posts": {
+      "heading": "Gönderiler",
+      "connection": "Bağlantın",
+      "likes": "{count} beğeni",
+      "comments": "{count} yorum",
+      "like": "Beğen",
+      "comment": "Yorum",
+      "share": "Paylaş",
+      "save": "Kaydet",
+      "jobLabel": "İş ilanı",
+      "apply": "Başvur",
+      "saveJob": "İlanı kaydet"
+    },
+    "workMode": {
+      "remote": "Uzaktan",
+      "hybrid": "Hibrit",
+      "onsite": "Ofiste"
+    },
+    "suggestions": {
+      "heading": "Önerilen bağlantılar",
+      "mutual": "{count} ortak bağlantı",
+      "connect": "Bağlan",
+      "connectWith": "{name} ile bağlan",
+      "sent": "İstek gönderildi",
+      "sentTo": "İstek gönderildi: {name}",
+      "sentAnnouncement": "{name} kişisine bağlantı isteği gönderildi",
+      "seeAll": "Tümünü gör"
+    },
+    "trending": {
+      "heading": "Gündem",
+      "posts": "{count} gönderi"
+    },
+    "jobs": {
+      "heading": "Sana uygun ilanlar",
+      "seeAll": "Tüm ilanlar"
+    }
   }
 }

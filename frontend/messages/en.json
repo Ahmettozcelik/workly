@@ -105,5 +105,80 @@
     "title": "Page not found",
     "description": "The page you're looking for may have moved or never existed.",
     "home": "Back to home"
+  },
+  "app": {
+    "skipToContent": "Skip to content",
+    "comingSoon": "Coming soon",
+    "prototypeBadge": "Prototype",
+    "search": "Search people, jobs or topics",
+    "nav": {
+      "label": "Main navigation",
+      "home": "Home",
+      "network": "My network",
+      "jobs": "Jobs",
+      "messages": "Messages",
+      "notifications": "Notifications"
+    },
+    "comingSoonShort": "Soon"
+  },
+  "feed": {
+    "meta": {
+      "title": "Feed"
+    },
+    "title": "Feed",
+    "asideLabel": "Suggestions and trends",
+    "profile": {
+      "verified": "Work email verified",
+      "connections": "Connections",
+      "profileViews": "Profile views",
+      "completion": "Your profile is {percent}% complete",
+      "nextStep": "Next step: {step}",
+      "complete": "Complete your profile"
+    },
+    "composer": {
+      "heading": "Create a post",
+      "placeholder": "What do you want to share?"
+    },
+    "filter": {
+      "label": "Filter the feed",
+      "everyone": "Everyone",
+      "connections": "My connections"
+    },
+    "posts": {
+      "heading": "Posts",
+      "connection": "Connection",
+      "likes": "{count} likes",
+      "comments": "{count} comments",
+      "like": "Like",
+      "comment": "Comment",
+      "share": "Share",
+      "save": "Save",
+      "jobLabel": "Job posting",
+      "apply": "Apply",
+      "saveJob": "Save job"
+    },
+    "workMode": {
+      "remote": "Remote",
+      "hybrid": "Hybrid",
+      "onsite": "On-site"
+    },
+    "suggestions": {
+      "heading": "People you may know",
+      "mutual": "{count} mutual connections",
+      "connect": "Connect",
+      "connectWith": "Connect with {name}",
+      "sent": "Request sent",
+      "sentTo": "Request sent: {name}",
+      "sentAnnouncement": "Connection request sent to {name}",
+      "seeAll": "See all"
+    },
+    "trending": {
+      "heading": "Trending",
+      "posts": "{count} posts"
+    },
+    "jobs": {
+      "heading": "Jobs for you",
+      "seeAll": "See all jobs"
+    }
   }
 }
