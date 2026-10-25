@@ -5,6 +5,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { localeAlternates } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
+import { redirectSignedInToFeed } from "@/lib/auth/server";
 import { RegistrationForm } from "./registration-form";
 
 export async function generateMetadata({
@@ -25,8 +26,9 @@ export default async function RegisterPage({
 }: PageProps<"/[locale]/register">) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
-  // Keeps the page static (no request headers needed to read the locale).
   setRequestLocale(locale);
+  // Reads the session cookie, so this page is rendered per request.
+  await redirectSignedInToFeed(locale);
 
   return (
     <AuthShell>

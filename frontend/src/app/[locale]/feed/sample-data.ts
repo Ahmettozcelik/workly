@@ -1,6 +1,7 @@
-// PROTOTYPE: sample content for the feed until the backend exists. Names are
-// shared; text is per locale. Times are relative to a fixed NOW so the server
-// and the browser render the same "2 hours ago" and tests stay stable.
+// PROTOTYPE: sample feed content (posts, people, topics, jobs) until those APIs
+// exist; the signed-in member is real (feed/page.tsx). Names are shared; text
+// is per locale. Times are relative to a fixed NOW so the server and the
+// browser render the same "2 hours ago" and tests stay stable.
 import type { Locale } from "next-intl";
 
 export type Localized = Record<Locale, string>;
@@ -11,16 +12,6 @@ export const NOW = new Date("2026-10-25T09:00:00Z");
 const minutesAgo = (minutes: number) => new Date(NOW.getTime() - minutes * 60_000);
 
 export type WorkMode = "remote" | "hybrid" | "onsite";
-
-export const viewer = {
-  name: "Ayşe Yılmaz",
-  title: { tr: "Ürün Tasarımcısı", en: "Product Designer" } as Localized,
-  workEmailVerified: true,
-  connections: 248,
-  profileViews: 37,
-  profileCompletion: 60,
-  nextStep: { tr: "Deneyim ekle", en: "Add your experience" } as Localized,
-};
 
 export type Person = { name: string; title: Localized };
 

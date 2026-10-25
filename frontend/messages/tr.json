@@ -79,6 +79,11 @@
         "body": "E-posta adresi veya şifre hatalı. Lütfen tekrar dene."
       },
       "registerPrompt": "Hesabın yok mu? <link>Kayıt ol</link>"
+    },
+    "logout": {
+      "submit": "Çıkış yap",
+      "submitting": "Çıkış yapılıyor",
+      "error": "Çıkış yapılamadı. Lütfen tekrar dene."
     }
   },
   "theme": {
@@ -124,14 +129,14 @@
       "title": "Akış"
     },
     "title": "Akış",
+    "error": {
+      "title": "Akış yüklenemedi",
+      "body": "Şu anda hesabına ulaşamadık. Bağlantını kontrol edip tekrar dene.",
+      "retry": "Tekrar dene"
+    },
     "asideLabel": "Öneriler ve gündem",
     "profile": {
-      "verified": "İş e-postası doğrulandı",
-      "connections": "Bağlantı",
-      "profileViews": "Profil görüntülenme",
-      "completion": "Profilin %{percent} tamamlandı",
-      "nextStep": "Sıradaki adım: {step}",
-      "complete": "Profili tamamla"
+      "verified": "İş e-postası doğrulandı"
     },
     "composer": {
       "heading": "Gönderi oluştur",

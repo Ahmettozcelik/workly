@@ -318,7 +318,9 @@ test.describe("metadata", () => {
   test("pages and redirects send no automatic Link (hreflang) header", async ({ request }) => {
     for (const path of ["/tr", "/en", "/tr/register", "/en/register", "/tr/login", "/en/login", "/register", "/login", "/"]) {
       const response = await request.get(path, { maxRedirects: 0 });
-      expect(response.headers()["link"], path).toBeUndefined();
+      // Dynamic pages (login, register) may send font preloads in a Link
+      // header; what must not appear is next-intl's alternate/hreflang links.
+      expect(response.headers()["link"] ?? "", path).not.toMatch(/hreflang|rel="?alternate/);
     }
   });
 

@@ -1,6 +1,11 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { AXE_TAGS, expect, test } from "./support";
+import { AXE_TAGS, expect, SIGNED_IN, signIn, test } from "./support";
+
+// The feed is for signed-in members; signed-out access is covered in auth-session.spec.ts.
+test.beforeEach(async ({ context, baseURL }) => {
+  await signIn(context, baseURL!);
+});
 
 const COPY = {
   tr: {
@@ -73,7 +78,7 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
       await expect(mainNav(page, c)).toBeVisible();
       await expect(page.getByRole("complementary", { name: c.aside })).toBeVisible();
       await expect(page.getByRole("heading", { level: 1, name: c.heading })).toBeAttached();
-      await expect(page.getByRole("heading", { level: 2, name: "Ayşe Yılmaz" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 2, name: SIGNED_IN.name })).toBeVisible();
       await expect(page.getByRole("article")).toHaveCount(4);
       await expect(firstPost(page).getByText(c.time)).toBeVisible();
     });
@@ -185,7 +190,7 @@ test.describe("feed keyboard", () => {
       banner.getByRole("button", { name: /^Tema:/ }),
       ...(isDesktop(page)
         ? [
-            page.getByRole("button", { name: "Profili tamamla" }),
+            page.getByRole("button", { name: "Çıkış yap" }),
             mainNav(page, COPY.tr).getByRole("link", { name: "Ana sayfa" }),
           ]
         : []),

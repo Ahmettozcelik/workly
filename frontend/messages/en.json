@@ -79,6 +79,11 @@
         "body": "The email or password you entered is incorrect. Please try again."
       },
       "registerPrompt": "Don't have an account? <link>Sign up</link>"
+    },
+    "logout": {
+      "submit": "Sign out",
+      "submitting": "Signing out",
+      "error": "Couldn't sign out. Please try again."
     }
   },
   "theme": {
@@ -124,14 +129,14 @@
       "title": "Feed"
     },
     "title": "Feed",
+    "error": {
+      "title": "The feed couldn't load",
+      "body": "We can't reach your account right now. Check your connection and try again.",
+      "retry": "Try again"
+    },
     "asideLabel": "Suggestions and trends",
     "profile": {
-      "verified": "Work email verified",
-      "connections": "Connections",
-      "profileViews": "Profile views",
-      "completion": "Your profile is {percent}% complete",
-      "nextStep": "Next step: {step}",
-      "complete": "Complete your profile"
+      "verified": "Work email verified"
     },
     "composer": {
       "heading": "Create a post",

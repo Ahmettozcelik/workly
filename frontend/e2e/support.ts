@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type BrowserContext, type Page } from "@playwright/test";
 
 // Shared by the page specs. Not a spec itself (no .spec suffix).
 
@@ -11,23 +11,30 @@ import { test as base, expect, type Page } from "@playwright/test";
 // ignored; a 404 for any other resource still fails the test.
 // Tests that make the (mocked) API fail on purpose set expectApiErrors: the
 // "Failed to load resource" logged for those /api/ requests is ignored.
+// Tests that make a server render fail on purpose (error.tsx) set
+// expectServerError: the 5xx document's "Failed to load resource" and React's
+// production report of a Server Components error (#441, details omitted) are
+// ignored; any other error still fails the test.
 export const test = base.extend<{
   consoleGuard: void;
   expectNotFoundDocument: boolean;
   expectApiErrors: boolean;
+  expectServerError: boolean;
 }>({
   expectNotFoundDocument: [false, { option: true }],
   expectApiErrors: [false, { option: true }],
+  expectServerError: [false, { option: true }],
   consoleGuard: [
-    async ({ page, expectNotFoundDocument, expectApiErrors }, use) => {
+    async ({ page, expectNotFoundDocument, expectApiErrors, expectServerError }, use) => {
       const problems: string[] = [];
       const notFoundDocuments = new Set<string>();
+      const serverErrorDocuments = new Set<string>();
       const failedApiRequests = new Set<string>();
       const isApi = (url: string) => new URL(url).pathname.startsWith("/api/");
       page.on("response", (response) => {
-        if (response.status() === 404 && response.request().resourceType() === "document") {
-          notFoundDocuments.add(response.url());
-        }
+        const isDocument = response.request().resourceType() === "document";
+        if (response.status() === 404 && isDocument) notFoundDocuments.add(response.url());
+        if (response.status() >= 500 && isDocument) serverErrorDocuments.add(response.url());
         if (response.status() >= 400 && isApi(response.url())) failedApiRequests.add(response.url());
       });
       page.on("requestfailed", (request) => {
@@ -39,7 +46,11 @@ export const test = base.extend<{
         const url = message.location().url;
         const isExpected404 = expectNotFoundDocument && failedResource && notFoundDocuments.has(url);
         const isExpectedApiError = expectApiErrors && failedResource && failedApiRequests.has(url);
-        if (!isExpected404 && !isExpectedApiError) problems.push(message.text());
+        const isExpectedServerError =
+          expectServerError &&
+          ((failedResource && serverErrorDocuments.has(url)) ||
+            message.text().startsWith("Error: Minified React error #441;"));
+        if (!isExpected404 && !isExpectedApiError && !isExpectedServerError) problems.push(message.text());
       });
       page.on("pageerror", (error) => problems.push(error.message));
       await use();
@@ -50,6 +61,24 @@ export const test = base.extend<{
 });
 
 export { expect };
+
+// --- Sessions -------------------------------------------------------------
+// The session check runs on the Next.js server against the mock backend
+// (e2e/mock-backend.mjs), which decides by the WORKLY_SESSION cookie value.
+
+export const SESSION_COOKIE = "WORKLY_SESSION";
+
+// The member the mock backend returns for a valid session.
+export const SIGNED_IN = { name: "Deniz Arslan", email: "deniz.arslan@example.com" };
+
+export type MockSession = "valid-tr" | "valid-en" | "verified" | "expired" | "backend-error" | "logout-error";
+
+// Puts a session cookie in the browser, as the backend would after sign-in.
+export async function signIn(context: BrowserContext, baseURL: string, session: MockSession = "valid-tr") {
+  await context.addCookies([
+    { name: SESSION_COOKIE, value: session, url: baseURL, httpOnly: true, sameSite: "Lax" },
+  ]);
+}
 
 // --- Auth API mock --------------------------------------------------------
 // The UI specs run against the frontend only, so /api/auth/* is answered here
@@ -99,9 +128,16 @@ export async function mockAuthApi(
       const reply = queue.length > 1 ? queue.shift()! : queue[0];
       if (gate) await gate;
       if (reply === "abort") return route.abort("failed");
+      // Like the backend, a successful register / login starts a session; the
+      // mock backend then answers the feed's session check for it.
+      const locale = (reply.body as { locale?: string } | undefined)?.locale ?? "tr";
       return route.fulfill({
         status: reply.status,
         contentType: reply.status >= 400 ? "application/problem+json" : "application/json",
+        headers:
+          reply.status < 300
+            ? { "set-cookie": `${SESSION_COOKIE}=valid-${locale}; Path=/; HttpOnly; SameSite=Lax` }
+            : {},
         body: JSON.stringify(reply.body ?? {}),
       });
     });

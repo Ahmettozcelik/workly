@@ -27,6 +27,9 @@ jobs:
       # Public test origin, not a secret: canonical and hreflang URLs are
       # written at build time and the E2E tests expect the test server's own.
       SITE_URL: http://localhost:3100
+      # The E2E tests' mock backend (e2e/mock-backend.mjs). The /api rewrite is
+      # fixed at build time, so the build step needs it too.
+      BACKEND_URL: http://localhost:3101
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v7
