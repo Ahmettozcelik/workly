@@ -22,10 +22,12 @@ class AddressRateLimits {
 
 	private final FixedWindowRateLimiter login;
 	private final FixedWindowRateLimiter register;
+	private final FixedWindowRateLimiter passwordReset;
 
 	AddressRateLimits(ThrottleProperties properties, Clock clock) {
 		this.login = limiter(properties.loginAddress(), clock);
 		this.register = limiter(properties.registerAddress(), clock);
+		this.passwordReset = limiter(properties.passwordResetAddress(), clock);
 	}
 
 	private static FixedWindowRateLimiter limiter(ThrottleProperties.AddressLimit limit, Clock clock) {
@@ -40,6 +42,10 @@ class AddressRateLimits {
 		check(register, request);
 	}
 
+	void checkPasswordReset(HttpServletRequest request) {
+		check(passwordReset, request);
+	}
+
 	private static void check(FixedWindowRateLimiter limiter, HttpServletRequest request) {
 		limiter.tryAcquire(request.getRemoteAddr()).ifPresent(retryAfter -> {
 			throw new RateLimitedException(retryAfter);
@@ -50,5 +56,6 @@ class AddressRateLimits {
 	void evictExpired() {
 		login.evictExpired();
 		register.evictExpired();
+		passwordReset.evictExpired();
 	}
 }

@@ -122,7 +122,7 @@ class EmailVerificationIntegrationTests {
 		List<String> hashes = jdbc.queryForList("""
 				SELECT t.token_hash FROM email_verification_tokens t JOIN users u ON u.id = t.user_id
 				WHERE u.email = ?""", String.class, member.email());
-		assertThat(hashes).containsExactly(EmailVerificationService.hash(token));
+		assertThat(hashes).containsExactly(LinkTokens.hash(token));
 		assertThat(hashes.getFirst()).isNotEqualTo(token).hasSize(64);
 	}
 
@@ -167,7 +167,7 @@ class EmailVerificationIntegrationTests {
 		Member expired = register("tr");
 		String expiredToken = lastToken(expired.email());
 		jdbc.update("UPDATE email_verification_tokens SET expires_at = now() - INTERVAL '1 minute' WHERE token_hash = ?",
-				EmailVerificationService.hash(expiredToken));
+				LinkTokens.hash(expiredToken));
 		expired.browser().post("/api/auth/verify-email", verifyJson(expiredToken))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VERIFICATION_TOKEN_INVALID"));

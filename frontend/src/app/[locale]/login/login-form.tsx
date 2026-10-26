@@ -1,12 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { PasswordInput } from "@/components/auth/password-input";
 import { RateLimitedAlert } from "@/components/auth/rate-limited-alert";
 import { validateEmail } from "@/components/auth/validation";
 import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -36,7 +35,6 @@ function validate(email: string, password: string): FieldErrors {
 export function LoginForm() {
   const t = useTranslations("auth.login");
   const tCommon = useTranslations("common");
-  const forgotNoteId = useId();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -169,18 +167,13 @@ export function LoginForm() {
           )}
         </FormField>
 
-        {/* PLACEHOLDER: password reset does not exist yet. Focusable but
-            aria-disabled, so it stays discoverable while doing nothing. */}
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            aria-disabled="true"
-            aria-describedby={forgotNoteId}
-            className="inline-flex min-h-11 cursor-not-allowed items-center text-sm font-medium text-fg-muted"
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-accent-text underline underline-offset-2"
           >
             {t("forgotPassword")}
-          </button>
-          <Badge id={forgotNoteId}>{t("forgotPasswordSoon")}</Badge>
+          </Link>
         </div>
 
         <Button type="submit" size="lg" fullWidth loading={status === "submitting"}>

@@ -1,5 +1,6 @@
 package com.workly.web;
 
+import com.workly.auth.InvalidPasswordResetTokenException;
 import com.workly.auth.InvalidVerificationTokenException;
 import com.workly.auth.RateLimitedException;
 import java.util.Comparator;
@@ -55,6 +56,11 @@ class ApiExceptionHandler {
 	@ExceptionHandler(InvalidVerificationTokenException.class)
 	ResponseEntity<ApiError.Body> invalidVerificationToken() {
 		return ApiError.VERIFICATION_TOKEN_INVALID.toResponse();
+	}
+
+	@ExceptionHandler(InvalidPasswordResetTokenException.class)
+	ResponseEntity<ApiError.Body> invalidPasswordResetToken() {
+		return ApiError.PASSWORD_RESET_TOKEN_INVALID.toResponse();
 	}
 
 	/** Too many attempts. Retry-After: whole seconds until the client may try again (at least 1). */

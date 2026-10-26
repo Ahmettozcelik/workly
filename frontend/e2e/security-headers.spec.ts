@@ -31,10 +31,23 @@ test.describe("security headers", () => {
   });
 
   test("pages in both languages carry them", async ({ request }) => {
-    for (const path of ["/tr", "/tr/login", "/tr/register", "/en/login", "/en/register"]) {
+    for (const path of ["/tr", "/tr/login", "/tr/register", "/en/login", "/en/register", "/tr/forgot-password"]) {
       const response = await request.get(path, { maxRedirects: 0 });
       expect(response.status(), path).toBe(200);
       expectSecurityHeaders(response, path);
+    }
+  });
+
+  test("the reset page sends no Referer at all (its URL carries the token)", async ({ request }) => {
+    for (const path of ["/tr/reset-password?token=abc", "/en/reset-password"]) {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(200);
+      const headers = response.headers();
+      // Exactly one value: the page rule replaces the site-wide one.
+      expect(headers["referrer-policy"], path).toBe("no-referrer");
+      for (const [name, value] of Object.entries(EXPECTED)) {
+        if (name !== "referrer-policy") expect(headers[name], `${path}: ${name}`).toBe(value);
+      }
     }
   });
 

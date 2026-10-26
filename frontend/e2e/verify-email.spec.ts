@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import type { Page, Route } from "@playwright/test";
-import { AXE_TAGS, expect, problem, rateLimited, signIn, test, type MockReply } from "./support";
+import type { Page } from "@playwright/test";
+import { AXE_TAGS, expect, mockEndpoint, problem, rateLimited, signIn, test, type MockReply } from "./support";
 
 // The verification page (/{locale}/verify-email?token=…) and the feed banner
 // for unverified members. The two endpoints are answered here (page.route);
@@ -9,25 +9,6 @@ import { AXE_TAGS, expect, problem, rateLimited, signIn, test, type MockReply } 
 const TOKEN = "dGVzdC10b2tlbi10aGF0LWxvb2tzLWxpa2UtdGhlLXJlYWw";
 const alertWith = (page: Page, text: string) => page.getByRole("alert").filter({ hasText: text });
 const statusWith = (page: Page, text: string) => page.getByRole("status").filter({ hasText: text });
-
-type Call = { body: unknown; csrfToken: string | undefined };
-
-// Answers POST /api/auth/{name} with the given replies in order (the last one repeats).
-async function mockEndpoint(page: Page, name: "verify-email" | "verification-email", replies: MockReply[]) {
-  const calls: Call[] = [];
-  await page.route(`**/api/auth/${name}`, async (route: Route) => {
-    calls.push({ body: route.request().postDataJSON(), csrfToken: route.request().headers()["x-xsrf-token"] });
-    const reply = replies.length > 1 ? replies.shift()! : replies[0];
-    if (reply === "abort") return route.abort("failed");
-    return route.fulfill({
-      status: reply.status,
-      contentType: "application/problem+json",
-      headers: reply.headers,
-      body: reply.status === 204 ? "" : JSON.stringify(reply.body ?? {}),
-    });
-  });
-  return calls;
-}
 
 const NO_CONTENT: MockReply = { status: 204 };
 

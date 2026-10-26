@@ -93,6 +93,11 @@ public class User {
 		emailVerified = true;
 	}
 
+	/** A new password hash (PasswordResetService); the caller ends the member's sessions. */
+	public void changePassword(String passwordHash) {
+		this.passwordHash = passwordHash;
+	}
+
 	public Instant getCreatedAt() {
 		return createdAt;
 	}

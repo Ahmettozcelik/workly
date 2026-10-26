@@ -150,6 +150,26 @@ export async function mockAuthApi(
 // The backend's answer to every valid registration: 202, no body, no session.
 export const registered: MockReply = { status: 202 };
 
+export type EndpointCall = { body: unknown; csrfToken: string | undefined };
+
+// Answers POST /api/auth/{name} with the given replies in order (the last one
+// repeats). Bodyless replies (202, 204) are sent without a body. Returns the calls.
+export async function mockEndpoint(page: Page, name: string, replies: MockReply[]) {
+  const calls: EndpointCall[] = [];
+  await page.route(`**/api/auth/${name}`, async (route) => {
+    calls.push({ body: route.request().postDataJSON(), csrfToken: route.request().headers()["x-xsrf-token"] });
+    const reply = replies.length > 1 ? replies.shift()! : replies[0];
+    if (reply === "abort") return route.abort("failed");
+    return route.fulfill({
+      status: reply.status,
+      contentType: "application/problem+json",
+      headers: reply.headers,
+      body: reply.body === undefined ? "" : JSON.stringify(reply.body),
+    });
+  });
+  return calls;
+}
+
 // 429 RATE_LIMITED, as the backend sends it; Retry-After in seconds unless omitted.
 export const rateLimited = (retryAfterSeconds?: number): MockReply => ({
   ...problem(429, "RATE_LIMITED"),

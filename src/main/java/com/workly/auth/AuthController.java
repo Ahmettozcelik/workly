@@ -28,14 +28,17 @@ class AuthController {
 	private final UserRepository users;
 	private final AddressRateLimits addressRateLimits;
 	private final EmailVerificationService emailVerification;
+	private final PasswordResetService passwordReset;
 
 	AuthController(AuthService authService, SessionLogin sessionLogin, UserRepository users,
-			AddressRateLimits addressRateLimits, EmailVerificationService emailVerification) {
+			AddressRateLimits addressRateLimits, EmailVerificationService emailVerification,
+			PasswordResetService passwordReset) {
 		this.authService = authService;
 		this.sessionLogin = sessionLogin;
 		this.users = users;
 		this.addressRateLimits = addressRateLimits;
 		this.emailVerification = emailVerification;
+		this.passwordReset = passwordReset;
 	}
 
 	/** Issues the XSRF-TOKEN cookie that every state-changing request must echo. */
@@ -86,6 +89,30 @@ class AuthController {
 	@PostMapping("/verification-email")
 	ResponseEntity<Void> resendVerificationEmail(@AuthenticationPrincipal AuthenticatedUser principal) {
 		emailVerification.resend(principal.id());
+		return ResponseEntity.noContent().build();
+	}
+
+	/**
+	 * Mails a password reset link if the email has an account. 202 with no
+	 * body either way (see PasswordResetService). Public, CSRF applies.
+	 * 429 RATE_LIMITED: too many from this address.
+	 */
+	@PostMapping("/password-reset")
+	ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody AuthRequests.PasswordReset body,
+			HttpServletRequest request) {
+		addressRateLimits.checkPasswordReset(request);
+		passwordReset.request(body.email());
+		return ResponseEntity.accepted().build();
+	}
+
+	/**
+	 * Sets a new password with a reset link's token and ends every session of
+	 * the member (no sign-in). Public, CSRF applies. 400
+	 * PASSWORD_RESET_TOKEN_INVALID for an unknown, used or expired link.
+	 */
+	@PostMapping("/password-reset/confirm")
+	ResponseEntity<Void> resetPassword(@Valid @RequestBody AuthRequests.PasswordResetConfirm body) {
+		passwordReset.reset(body.token(), body.password());
 		return ResponseEntity.noContent().build();
 	}
 
