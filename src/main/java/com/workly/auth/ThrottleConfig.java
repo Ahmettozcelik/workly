@@ -7,11 +7,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * Attempt limits and email verification: their settings, the clock they count
- * with, and the cleanup schedules.
+ * Attempt limits, email verification and password reset: their settings, the
+ * clock they count with, and the cleanup schedules.
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({ ThrottleProperties.class, VerificationProperties.class })
+@EnableConfigurationProperties({ ThrottleProperties.class, VerificationProperties.class,
+		PasswordResetProperties.class })
 @EnableScheduling
 class ThrottleConfig {
 

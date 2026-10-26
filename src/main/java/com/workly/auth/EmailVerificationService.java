@@ -3,15 +3,9 @@ package com.workly.auth;
 import com.workly.mail.MailOutbox;
 import com.workly.user.User;
 import com.workly.user.UserRepository;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Email verification links: 32 random bytes (base64url) in the mail, only their
- * SHA-256 in the database (V4). A link works once and expires
+ * Email verification links (LinkTokens: random token in the mail, only its
+ * SHA-256 in the database, V4). A link works once and expires
  * (workly.auth.verification.token-lifetime); a new link replaces the member's
  * unused ones. Mails are queued after the token is committed and sent in the
  * background (MailOutbox); a failed send does not fail the caller, since the
@@ -30,8 +24,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 public class EmailVerificationService {
-
-	private static final int TOKEN_BYTES = 32;
 
 	private final EmailVerificationTokenRepository tokens;
 	private final UserRepository users;
@@ -41,7 +33,6 @@ public class EmailVerificationService {
 	private final VerificationProperties properties;
 	private final List<FixedWindowRateLimiter> resendLimiters;
 	private final FixedWindowRateLimiter existingAccountLimiter;
-	private final SecureRandom random = new SecureRandom();
 
 	EmailVerificationService(EmailVerificationTokenRepository tokens, UserRepository users, MailOutbox outbox,
 			TransactionTemplate transaction, Clock clock, VerificationProperties properties) {
@@ -62,11 +53,11 @@ public class EmailVerificationService {
 
 	/** Creates a new link for the member and queues the mail. */
 	public void issue(User user) {
-		String token = newToken();
+		String token = LinkTokens.newToken();
 		Instant now = clock.instant();
 		transaction.executeWithoutResult(status -> {
 			tokens.deleteUnusedOf(user.getId());
-			tokens.save(new EmailVerificationToken(user, hash(token), now, now.plus(properties.tokenLifetime())));
+			tokens.save(new EmailVerificationToken(user, LinkTokens.hash(token), now, now.plus(properties.tokenLifetime())));
 		});
 		outbox.queue(VerificationMail.of(user, link(user, "/verify-email?token=" + token), properties.tokenLifetime()));
 	}
@@ -78,7 +69,7 @@ public class EmailVerificationService {
 	 */
 	@Transactional
 	public void verify(String token) {
-		EmailVerificationToken found = tokens.findByTokenHash(hash(token))
+		EmailVerificationToken found = tokens.findByTokenHash(LinkTokens.hash(token))
 			.orElseThrow(InvalidVerificationTokenException::new);
 		if (found.isUsed()) {
 			if (found.getUser().isEmailVerified()) {
@@ -145,27 +136,7 @@ public class EmailVerificationService {
 		existingAccountLimiter.evictExpired();
 	}
 
-	/** A frontend page in the member's language, e.g. /login → {base-url}/tr/login. */
 	private String link(User user, String page) {
-		String base = properties.baseUrl().replaceAll("/+$", "");
-		String locale = "en".equals(user.getLocale()) ? "en" : "tr";
-		return base + "/" + locale + page;
-	}
-
-	private String newToken() {
-		byte[] bytes = new byte[TOKEN_BYTES];
-		random.nextBytes(bytes);
-		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-	}
-
-	/** SHA-256 (hex) of the token as it appears in the link. */
-	static String hash(String token) {
-		try {
-			return HexFormat.of().formatHex(
-					MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
-		}
-		catch (NoSuchAlgorithmException ex) {
-			throw new IllegalStateException("SHA-256 is always available", ex);
-		}
+		return LinkTokens.link(properties.baseUrl(), user, page);
 	}
 }

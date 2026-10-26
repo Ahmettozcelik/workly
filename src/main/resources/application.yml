@@ -58,8 +58,12 @@ workly:
       register-address:
         max-requests: 10
         window: 1h
+      password-reset-address:
+        max-requests: 10
+        window: 1h
     verification:
-      # The frontend origin the mailed link points to: {base-url}/{locale}/verify-email?token=…
+      # The frontend origin the mailed links point to: {base-url}/{locale}/verify-email?token=…
+      # (and /reset-password?token=…, /login, /forgot-password).
       base-url: ${APP_BASE_URL:http://localhost:3000}
       token-lifetime: 24h
       # Per signed-in member asking for a new link; every limit applies.
@@ -73,6 +77,15 @@ workly:
       existing-account-limit:
         max-requests: 1
         window: 15m
+    password-reset:
+      token-lifetime: 30m
+      # Reset mails per member (silent: the request answers 202 either way);
+      # every limit applies.
+      member-limits:
+        - max-requests: 1
+          window: 1m
+        - max-requests: 5
+          window: 1h
 
   mail:
     # Sender address of Workly's mails (prod: MAIL_FROM).

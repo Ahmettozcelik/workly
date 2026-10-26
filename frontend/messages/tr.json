@@ -83,7 +83,6 @@
         "errorEmpty": "Şifreni gir."
       },
       "forgotPassword": "Şifreni mi unuttun?",
-      "forgotPasswordSoon": "Yakında",
       "submit": "Giriş yap",
       "submitting": "Giriş yapılıyor",
       "failure": {
@@ -91,6 +90,50 @@
         "body": "E-posta adresi veya şifre hatalı. Lütfen tekrar dene."
       },
       "registerPrompt": "Hesabın yok mu? <link>Kayıt ol</link>"
+    },
+    "forgotPassword": {
+      "meta": {
+        "title": "Şifreni sıfırla",
+        "description": "Hesabının e-posta adresini gir; şifreni sıfırlaman için bir bağlantı gönderelim."
+      },
+      "title": "Şifreni mi unuttun?",
+      "subtitle": "Hesabının e-posta adresini gir. Sana yeni bir şifre belirlemen için bir bağlantı gönderelim.",
+      "submit": "Bağlantı gönder",
+      "submitting": "Gönderiliyor",
+      "sent": {
+        "title": "Gelen kutunu kontrol et",
+        "body": "<strong>{email}</strong> adresiyle bir Workly hesabı varsa, şifreni sıfırlaman için bir bağlantı gönderdik. Bağlantı 30 dakika geçerlidir.",
+        "spam": "E-posta birkaç dakika içinde gelmezse istenmeyen (spam) klasörüne bak.",
+        "toLogin": "Giriş sayfasına git",
+        "useAnotherEmail": "Farklı bir e-posta kullan"
+      },
+      "signInPrompt": "Şifreni hatırladın mı? <link>Giriş yap</link>"
+    },
+    "resetPassword": {
+      "meta": {
+        "title": "Yeni şifre belirle"
+      },
+      "title": "Yeni şifre belirle",
+      "subtitle": "Workly hesabın için yeni bir şifre seç.",
+      "password": {
+        "label": "Yeni şifre",
+        "hint": "En az {min} karakter.",
+        "errorEmpty": "Yeni bir şifre belirle.",
+        "errorTooShort": "Şifren en az {min} karakter olmalı.",
+        "errorTooLong": "Şifre çok uzun. Daha kısa bir şifre seç."
+      },
+      "submit": "Şifremi değiştir",
+      "submitting": "Değiştiriliyor",
+      "success": {
+        "title": "Şifren değiştirildi",
+        "body": "Güvenliğin için bütün cihazlarda oturumun kapatıldı. Yeni şifrenle giriş yapabilirsin."
+      },
+      "toLogin": "Giriş yap",
+      "invalid": {
+        "title": "Bu bağlantı geçersiz ya da süresi dolmuş",
+        "body": "Bağlantı yalnızca bir kez ve 30 dakika içinde kullanılabilir. Yeni bir bağlantı isteyebilirsin."
+      },
+      "requestNew": "Yeni bağlantı iste"
     },
     "logout": {
       "submit": "Çıkış yap",

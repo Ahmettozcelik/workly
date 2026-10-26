@@ -33,3 +33,16 @@ export function verifyEmail(token: string) {
 export function resendVerificationEmail() {
   return postJson<void>("/api/auth/verification-email", {});
 }
+
+// Mails a password reset link if the email has an account (202, no body). The
+// API answers the same for any email. Errors: VALIDATION_FAILED (400), RATE_LIMITED (429).
+export function requestPasswordReset(email: string) {
+  return postJson<void>("/api/auth/password-reset", { email });
+}
+
+// Sets a new password with a reset link's token (204) and signs the member out
+// on every device; no new session. Errors: PASSWORD_RESET_TOKEN_INVALID (400:
+// unknown, used or expired), VALIDATION_FAILED (400).
+export function resetPassword(token: string, password: string) {
+  return postJson<void>("/api/auth/password-reset/confirm", { token, password });
+}

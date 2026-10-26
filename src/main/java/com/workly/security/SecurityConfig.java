@@ -53,7 +53,8 @@ class SecurityConfig {
 		http
 			.authorizeHttpRequests(requests -> requests
 				.requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
-				.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/verify-email")
+				.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/verify-email",
+						"/api/auth/password-reset", "/api/auth/password-reset/confirm")
 				.permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 				.requestMatchers("/error").permitAll()

@@ -25,7 +25,12 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/((?!api(?:/|$)).*)", headers: securityHeaders }];
+    return [
+      { source: "/((?!api(?:/|$)).*)", headers: securityHeaders },
+      // The reset link carries its token in the URL: never send it on as a
+      // Referer (the later rule wins for the same header).
+      { source: "/:locale(tr|en)/reset-password", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] },
+    ];
   },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];

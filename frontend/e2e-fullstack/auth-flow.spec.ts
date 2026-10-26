@@ -232,3 +232,80 @@ test.describe("wrong password", () => {
     await expect(page).toHaveURL("/tr/login");
   });
 });
+
+// Asks for a reset link from the login page; the page answers alike for any email.
+async function requestPasswordReset(page: Page, email: string) {
+  await page.goto("/tr/login");
+  await page.getByRole("link", { name: "Şifreni mi unuttun?" }).click();
+  await expect(page).toHaveURL("/tr/forgot-password");
+  await emailField(page).fill(email);
+  await page.getByRole("button", { name: "Bağlantı gönder" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Gelen kutunu kontrol et" })).toBeVisible();
+}
+
+test.describe("password reset", () => {
+  // The refused old password is a 401 from the API; the browser logs it.
+  test.use({ expectApiErrors: true });
+
+  test("the mailed link sets a new password and signs the member out everywhere", async ({
+    page,
+    browser,
+    request,
+  }) => {
+    const member = newMember();
+    const newPassword = `Pw-${randomUUID()}`;
+    await register(page, member);
+
+    // Signed in on another device.
+    const otherDevice = await browser.newPage();
+    await otherDevice.goto("/tr/login");
+    await logIn(otherDevice, member.email, member.password);
+    await expectFeedOf(otherDevice, member);
+
+    await requestPasswordReset(page, member.email);
+    const text = await mailedText(request, member.email, "Workly şifreni sıfırla");
+    const link = text.match(/https?:\/\/\S+\/tr\/reset-password\?token=[A-Za-z0-9_-]+/)?.[0];
+    expect(link, "reset link in the mail").toBeTruthy();
+    expect(new URL(link!).origin, "the link points to this frontend").toBe(new URL(page.url()).origin);
+
+    await page.goto(link!);
+    // The token is taken off the address bar.
+    await expect(page).toHaveURL("/tr/reset-password");
+    await passwordField(page).fill(newPassword);
+    await page.getByRole("button", { name: "Şifremi değiştir" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Şifren değiştirildi" })).toBeVisible();
+    expect(await mailedText(request, member.email, "Workly şifren değiştirildi")).toContain(
+      `Merhaba ${member.displayName}`,
+    );
+
+    // The other device's session is gone.
+    await otherDevice.goto("/tr/feed");
+    await expect(otherDevice).toHaveURL("/tr/login");
+    await otherDevice.close();
+
+    // The old password no longer works; the new one does, and the email counts as verified.
+    await page.goto("/tr/login");
+    await logIn(page, member.email, member.password);
+    await expect(alertWith(page, "Giriş yapılamadı")).toBeVisible();
+    await logIn(page, member.email, newPassword);
+    await expectFeedOf(page, member);
+    await expect(profile(page, member).getByText("E-posta doğrulandı")).toBeVisible();
+
+    // The link worked once.
+    await logOut(page);
+    await page.goto(link!);
+    await passwordField(page).fill(`Pw-${randomUUID()}`);
+    await page.getByRole("button", { name: "Şifremi değiştir" }).click();
+    await expect(alertWith(page, "Bu bağlantı geçersiz ya da süresi dolmuş")).toBeVisible();
+  });
+
+  test("an unknown email gets the same page and no mail", async ({ page, request }) => {
+    const email = newMember().email;
+    await requestPasswordReset(page, email);
+    // The lookup runs in the background: give it time to (not) send anything.
+    await page.waitForTimeout(3_000);
+    const search = `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`;
+    const found = (await (await request.get(search)).json()) as { messages: unknown[] };
+    expect(found.messages).toEqual([]);
+  });
+});

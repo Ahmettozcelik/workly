@@ -50,4 +50,23 @@ public final class AuthRequests {
 	public record VerifyEmail(
 			@NotBlank(message = "REQUIRED") @Size(max = 100, message = "TOO_LONG") String token) {
 	}
+
+	/** Asking for a reset link; the same email rules as registration. */
+	public record PasswordReset(
+			@NotBlank(message = "REQUIRED")
+			@Email(regexp = EMAIL_PATTERN, message = "INVALID_EMAIL")
+			@Size(max = 254, message = "TOO_LONG") String email) {
+
+		public PasswordReset {
+			email = email == null ? null : email.trim();
+		}
+	}
+
+	/** The token from a reset link and the new password (the same rules as registration). */
+	public record PasswordResetConfirm(
+			@NotBlank(message = "REQUIRED") @Size(max = 100, message = "TOO_LONG") String token,
+			@NotEmpty(message = "REQUIRED")
+			@Size(min = PASSWORD_MIN_LENGTH, message = "TOO_SHORT")
+			@MaxUtf8Bytes(PASSWORD_MAX_BYTES) String password) {
+	}
 }

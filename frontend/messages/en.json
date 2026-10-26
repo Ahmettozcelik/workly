@@ -83,7 +83,6 @@
         "errorEmpty": "Enter your password."
       },
       "forgotPassword": "Forgot your password?",
-      "forgotPasswordSoon": "Coming soon",
       "submit": "Sign in",
       "submitting": "Signing in",
       "failure": {
@@ -91,6 +90,50 @@
         "body": "The email or password you entered is incorrect. Please try again."
       },
       "registerPrompt": "Don't have an account? <link>Sign up</link>"
+    },
+    "forgotPassword": {
+      "meta": {
+        "title": "Reset your password",
+        "description": "Enter the email address of your account and we will send you a link to reset your password."
+      },
+      "title": "Forgot your password?",
+      "subtitle": "Enter the email address of your account. We will send you a link to choose a new password.",
+      "submit": "Send link",
+      "submitting": "Sending",
+      "sent": {
+        "title": "Check your inbox",
+        "body": "If a Workly account uses <strong>{email}</strong>, we sent it a link to reset your password. The link expires in 30 minutes.",
+        "spam": "If it does not arrive within a few minutes, check your spam folder.",
+        "toLogin": "Go to sign in",
+        "useAnotherEmail": "Use a different email"
+      },
+      "signInPrompt": "Remembered your password? <link>Sign in</link>"
+    },
+    "resetPassword": {
+      "meta": {
+        "title": "Choose a new password"
+      },
+      "title": "Choose a new password",
+      "subtitle": "Pick a new password for your Workly account.",
+      "password": {
+        "label": "New password",
+        "hint": "Use at least {min} characters.",
+        "errorEmpty": "Create a new password.",
+        "errorTooShort": "Your password must be at least {min} characters.",
+        "errorTooLong": "Password is too long. Choose a shorter one."
+      },
+      "submit": "Change my password",
+      "submitting": "Changing",
+      "success": {
+        "title": "Your password was changed",
+        "body": "For your security, you were signed out on every device. You can now sign in with your new password."
+      },
+      "toLogin": "Sign in",
+      "invalid": {
+        "title": "This link is invalid or has expired",
+        "body": "A link works once and only within 30 minutes. You can ask for a new one."
+      },
+      "requestNew": "Request a new link"
     },
     "logout": {
       "submit": "Sign out",

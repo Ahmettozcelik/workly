@@ -25,7 +25,7 @@ const COPY = {
     submit: "Giriş yap",
     submitting: "Giriş yapılıyor",
     forgot: "Şifreni mi unuttun?",
-    soon: "Yakında",
+    forgotHeading: "Şifreni mi unuttun?",
     register: "Kayıt ol",
     summary: "Bazı alanlar eksik veya hatalı",
     emailEmpty: "E-posta adresini gir.",
@@ -51,7 +51,7 @@ const COPY = {
     submit: "Sign in",
     submitting: "Signing in",
     forgot: "Forgot your password?",
-    soon: "Coming soon",
+    forgotHeading: "Forgot your password?",
     register: "Sign up",
     summary: "Some fields are missing or need attention.",
     emailEmpty: "Enter your email address.",
@@ -75,7 +75,7 @@ const emailField = (page: Page, c: Copy) => page.getByRole("textbox", { name: c.
 const passwordField = (page: Page) => page.locator('input[name="password"]');
 const submitButton = (page: Page, c: Copy) => page.getByRole("button", { name: c.submit, exact: true });
 const passwordToggle = (page: Page, c: Copy) => page.getByRole("button", { name: c.show });
-const forgotButton = (page: Page, c: Copy) => page.getByRole("button", { name: c.forgot });
+const forgotLink = (page: Page, c: Copy) => page.getByRole("link", { name: c.forgot });
 // Next.js also renders an empty role="alert" route announcer, so filter by text.
 const alertWith = (page: Page, text: string) => page.getByRole("alert").filter({ hasText: text });
 
@@ -102,24 +102,14 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
       );
     });
 
-    test("forgot password is a clearly unavailable placeholder", async ({ page }) => {
+    test("forgot password opens the reset request page in the same language", async ({ page }) => {
       await page.goto(c.path);
-      const forgot = forgotButton(page, c);
-      await expect(forgot).toHaveAttribute("aria-disabled", "true");
-      await expect(forgot).toHaveAttribute("type", "button");
-      await expect(forgot).toHaveAccessibleDescription(c.soon);
-      await expect(page.getByText(c.soon, { exact: true })).toBeVisible();
-
-      // Activating it does nothing: no navigation, no submit, no validation.
-      // (force: Playwright treats aria-disabled as disabled and would wait.)
-      const url = page.url();
-      await forgot.click({ force: true });
-      await forgot.focus();
-      await page.keyboard.press("Enter");
-      await page.keyboard.press("Space");
-      expect(page.url()).toBe(url);
+      await expect(forgotLink(page, c)).toHaveAttribute("href", `/${lang}/forgot-password`);
+      await forgotLink(page, c).click();
+      await expect(page).toHaveURL(`/${lang}/forgot-password`);
+      await expect(page.getByRole("heading", { level: 1, name: c.forgotHeading })).toBeVisible();
+      // No submit, no validation on the way out.
       await expect(alertWith(page, c.summary)).toHaveCount(0);
-      await expect(page.getByRole("heading", { level: 1, name: c.heading })).toBeVisible();
     });
 
     test("empty submit shows errors and focuses the email field", async ({ page }) => {
@@ -309,7 +299,7 @@ for (const [lang, c] of Object.entries(COPY) as [keyof typeof COPY, Copy][]) {
         emailField(page, c),
         passwordField(page),
         passwordToggle(page, c),
-        forgotButton(page, c),
+        forgotLink(page, c),
         submitButton(page, c),
         page.getByRole("link", { name: c.register }),
       ];
