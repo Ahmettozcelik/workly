@@ -30,7 +30,7 @@ function readCsrfToken(): string | undefined {
   return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : undefined;
 }
 
-async function send(method: "GET" | "POST", path: string, body?: unknown, csrfToken?: string) {
+async function send(method: "GET" | "POST" | "DELETE", path: string, body?: unknown, csrfToken?: string) {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (csrfToken) headers[CSRF_HEADER] = csrfToken;
@@ -71,17 +71,36 @@ async function toApiError(response: Response) {
   return new ApiError(response.status, code, fieldErrors, retryAfterSeconds);
 }
 
-// POSTs JSON with the CSRF token. A rejected token (it rotates on sign-in) is
-// refreshed and the request retried once.
-export async function postJson<T>(path: string, body: unknown): Promise<T> {
-  let response = await send("POST", path, body, readCsrfToken() ?? (await fetchCsrfToken()));
+// The body as JSON; 204, and 202 from register, have none.
+async function readBody<T>(response: Response): Promise<T> {
+  if (!response.ok) throw await toApiError(response);
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+// A state-changing request with the CSRF token. A rejected token (it rotates
+// on sign-in) is refreshed and the request retried once.
+async function sendWithCsrf<T>(method: "POST" | "DELETE", path: string, body?: unknown): Promise<T> {
+  let response = await send(method, path, body, readCsrfToken() ?? (await fetchCsrfToken()));
   if (response.status === 403) {
     const error = await toApiError(response);
     if (error.code !== "CSRF_INVALID") throw error;
-    response = await send("POST", path, body, await fetchCsrfToken());
+    response = await send(method, path, body, await fetchCsrfToken());
   }
-  if (!response.ok) throw await toApiError(response);
-  // 204, and 202 from register, have no body.
-  const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return readBody<T>(response);
+}
+
+// POSTs JSON with the CSRF token.
+export function postJson<T>(path: string, body: unknown): Promise<T> {
+  return sendWithCsrf<T>("POST", path, body);
+}
+
+// DELETE with the CSRF token.
+export function deleteJson<T>(path: string): Promise<T> {
+  return sendWithCsrf<T>("DELETE", path);
+}
+
+// GETs JSON (no CSRF token needed).
+export async function getJson<T>(path: string): Promise<T> {
+  return readBody<T>(await send("GET", path));
 }

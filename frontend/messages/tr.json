@@ -211,7 +211,8 @@
     },
     "asideLabel": "Öneriler ve gündem",
     "profile": {
-      "verified": "E-posta doğrulandı"
+      "verified": "E-posta doğrulandı",
+      "security": "Güvenlik ve oturumlar"
     },
     "verifyBanner": {
       "title": "E-postanı doğrula",
@@ -267,6 +268,50 @@
     "jobs": {
       "heading": "Sana uygun ilanlar",
       "seeAll": "Tüm ilanlar"
+    }
+  },
+  "settingsSecurity": {
+    "meta": {
+      "title": "Güvenlik"
+    },
+    "title": "Güvenlik",
+    "subtitle": "Şifreni değiştir ve hesabının açık olduğu cihazları yönet.",
+    "changePassword": {
+      "heading": "Şifreyi değiştir",
+      "current": {
+        "label": "Mevcut şifre",
+        "errorEmpty": "Mevcut şifreni gir.",
+        "errorIncorrect": "Mevcut şifren hatalı."
+      },
+      "next": {
+        "label": "Yeni şifre",
+        "hint": "En az {min} karakter.",
+        "errorEmpty": "Yeni bir şifre belirle.",
+        "errorTooShort": "Şifren en az {min} karakter olmalı.",
+        "errorTooLong": "Şifre çok uzun. Daha kısa bir şifre seç.",
+        "errorSame": "Yeni şifren mevcut şifrenden farklı olmalı."
+      },
+      "submit": "Şifreyi değiştir",
+      "submitting": "Değiştiriliyor",
+      "success": {
+        "title": "Şifren değiştirildi",
+        "body": "Bu cihazda oturumun açık kalıyor; diğer cihazlarda oturum kapatıldı."
+      }
+    },
+    "sessions": {
+      "heading": "Aktif oturumlar",
+      "description": "Hesabının açık olduğu cihazlar. Tanımadığın bir oturum görürsen kapat ve şifreni değiştir.",
+      "loading": "Oturumlar yükleniyor",
+      "unknownDevice": "Bilinmeyen cihaz",
+      "current": "Bu cihaz",
+      "signedIn": "Oturum açıldı: {date}",
+      "lastActive": "Son etkinlik: {date}",
+      "revoke": "Oturumu kapat",
+      "revokeOthers": "Diğer tüm oturumları kapat",
+      "revoked": "Oturum kapatıldı.",
+      "othersRevoked": "Diğer tüm oturumlar kapatıldı.",
+      "onlyThis": "Şu anda yalnızca bu cihazda oturumun açık.",
+      "retry": "Tekrar dene"
     }
   }
 }

@@ -137,7 +137,7 @@ public class PasswordResetService {
 		// After the commit: a sign-in from now on needs the new password.
 		loginThrottle.reset(user.getEmail());
 		sessions.findByPrincipalName(user.getId().toString()).keySet().forEach(sessions::deleteById);
-		outbox.queue(PasswordChangedMail.of(user, LinkTokens.link(baseUrl, user, "/forgot-password")));
+		outbox.queue(PasswordChangedMail.afterReset(user, LinkTokens.link(baseUrl, user, "/forgot-password")));
 	}
 
 	@Scheduled(fixedDelayString = "PT1H", initialDelayString = "PT10M")

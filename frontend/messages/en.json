@@ -211,7 +211,8 @@
     },
     "asideLabel": "Suggestions and trends",
     "profile": {
-      "verified": "Email verified"
+      "verified": "Email verified",
+      "security": "Security and sessions"
     },
     "verifyBanner": {
       "title": "Verify your email",
@@ -267,6 +268,50 @@
     "jobs": {
       "heading": "Jobs for you",
       "seeAll": "See all jobs"
+    }
+  },
+  "settingsSecurity": {
+    "meta": {
+      "title": "Security"
+    },
+    "title": "Security",
+    "subtitle": "Change your password and manage the devices signed in to your account.",
+    "changePassword": {
+      "heading": "Change password",
+      "current": {
+        "label": "Current password",
+        "errorEmpty": "Enter your current password.",
+        "errorIncorrect": "Your current password is incorrect."
+      },
+      "next": {
+        "label": "New password",
+        "hint": "Use at least {min} characters.",
+        "errorEmpty": "Create a new password.",
+        "errorTooShort": "Your password must be at least {min} characters.",
+        "errorTooLong": "Password is too long. Choose a shorter one.",
+        "errorSame": "Your new password must be different from your current one."
+      },
+      "submit": "Change password",
+      "submitting": "Changing",
+      "success": {
+        "title": "Your password was changed",
+        "body": "You stay signed in on this device; your other devices were signed out."
+      }
+    },
+    "sessions": {
+      "heading": "Active sessions",
+      "description": "Devices signed in to your account. If you see a session you do not recognise, sign it out and change your password.",
+      "loading": "Loading sessions",
+      "unknownDevice": "Unknown device",
+      "current": "This device",
+      "signedIn": "Signed in: {date}",
+      "lastActive": "Last active: {date}",
+      "revoke": "Sign out",
+      "revokeOthers": "Sign out all other sessions",
+      "revoked": "The session was signed out.",
+      "othersRevoked": "All other sessions were signed out.",
+      "onlyThis": "You are only signed in on this device right now.",
+      "retry": "Try again"
     }
   }
 }

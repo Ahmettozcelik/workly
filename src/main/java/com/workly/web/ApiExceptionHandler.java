@@ -2,7 +2,9 @@ package com.workly.web;
 
 import com.workly.auth.InvalidPasswordResetTokenException;
 import com.workly.auth.InvalidVerificationTokenException;
+import com.workly.auth.PasswordChangeRejectedException;
 import com.workly.auth.RateLimitedException;
+import com.workly.auth.SessionNotFoundException;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,6 +58,17 @@ class ApiExceptionHandler {
 	@ExceptionHandler(InvalidVerificationTokenException.class)
 	ResponseEntity<ApiError.Body> invalidVerificationToken() {
 		return ApiError.VERIFICATION_TOKEN_INVALID.toResponse();
+	}
+
+	/** Wrong current password or an unchanged one: a field error like any other. */
+	@ExceptionHandler(PasswordChangeRejectedException.class)
+	ResponseEntity<ApiError.Body> passwordChangeRejected(PasswordChangeRejectedException ex) {
+		return ApiError.VALIDATION_FAILED.toResponse(List.of(new ApiError.FieldError(ex.field(), ex.code())));
+	}
+
+	@ExceptionHandler(SessionNotFoundException.class)
+	ResponseEntity<ApiError.Body> sessionNotFound() {
+		return ApiError.NOT_FOUND.toResponse();
 	}
 
 	@ExceptionHandler(InvalidPasswordResetTokenException.class)

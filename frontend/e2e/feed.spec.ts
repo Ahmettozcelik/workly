@@ -190,6 +190,7 @@ test.describe("feed keyboard", () => {
       banner.getByRole("button", { name: /^Tema:/ }),
       ...(isDesktop(page)
         ? [
+            page.getByRole("link", { name: "Güvenlik ve oturumlar" }),
             page.getByRole("button", { name: "Çıkış yap" }),
             mainNav(page, COPY.tr).getByRole("link", { name: "Ana sayfa" }),
           ]

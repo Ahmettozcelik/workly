@@ -28,6 +28,7 @@ class BrowserClient {
 	private final MockMvc mvc;
 	private final String address;
 	private final Map<String, String> cookies = new LinkedHashMap<>();
+	private String userAgent;
 
 	BrowserClient(MockMvc mvc) {
 		this(mvc, nextAddress());
@@ -49,6 +50,12 @@ class BrowserClient {
 		return address;
 	}
 
+	/** Sends this User-Agent from now on (none by default). */
+	BrowserClient userAgent(String userAgent) {
+		this.userAgent = userAgent;
+		return this;
+	}
+
 	ResultActions get(String path) throws Exception {
 		return perform(MockMvcRequestBuilders.get(path));
 	}
@@ -59,6 +66,19 @@ class BrowserClient {
 			get("/api/auth/csrf");
 		}
 		return perform(jsonPost(path, json).header("X-XSRF-TOKEN", cookies.get(CSRF_COOKIE)));
+	}
+
+	/** DELETE with the current CSRF token (fetched first if the jar has none). */
+	ResultActions delete(String path) throws Exception {
+		if (!cookies.containsKey(CSRF_COOKIE)) {
+			get("/api/auth/csrf");
+		}
+		return perform(MockMvcRequestBuilders.delete(path).header("X-XSRF-TOKEN", cookies.get(CSRF_COOKIE)));
+	}
+
+	/** DELETE that does not send the X-XSRF-TOKEN header. */
+	ResultActions deleteWithoutCsrfHeader(String path) throws Exception {
+		return perform(MockMvcRequestBuilders.delete(path));
 	}
 
 	/** POST that does not send the X-XSRF-TOKEN header. */
@@ -83,6 +103,9 @@ class BrowserClient {
 			each.setRemoteAddr(address);
 			return each;
 		});
+		if (userAgent != null) {
+			request.header("User-Agent", userAgent);
+		}
 		if (!cookies.isEmpty()) {
 			request.cookie(cookies.entrySet().stream()
 				.map(entry -> new Cookie(entry.getKey(), entry.getValue()))
