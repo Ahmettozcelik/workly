@@ -12,7 +12,6 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -71,14 +70,14 @@ public class AuthService {
 	 * towards the per-email limit (LoginThrottle), for unknown emails too; while
 	 * an email is blocked, nothing is checked and RateLimitedException is thrown.
 	 */
-	public User authenticate(AuthRequests.Login request) {
+	public SignIn authenticate(AuthRequests.Login request) {
 		loginThrottle.blockedFor(request.email()).ifPresent(retryAfter -> {
 			throw new RateLimitedException(retryAfter);
 		});
 		try {
-			User user = checkCredentials(request);
+			SignIn signIn = checkCredentials(request);
 			loginThrottle.reset(request.email());
-			return user;
+			return signIn;
 		}
 		catch (AuthenticationException ex) {
 			loginThrottle.recordFailure(request.email());
@@ -86,7 +85,11 @@ public class AuthService {
 		}
 	}
 
-	private User checkCredentials(AuthRequests.Login request) {
+	/** A successful sign-in: the member, and the credentials version read with the checked password hash. */
+	public record SignIn(User user, int credentialsVersion) {
+	}
+
+	private SignIn checkCredentials(AuthRequests.Login request) {
 		// Longer passwords can never match (registration caps them); bcrypt would reject them.
 		if (request.password().getBytes(StandardCharsets.UTF_8).length > AuthRequests.PASSWORD_MAX_BYTES) {
 			throw new BadCredentialsException("Bad credentials");
@@ -94,7 +97,11 @@ public class AuthService {
 		Authentication result = authenticationManager.authenticate(
 				UsernamePasswordAuthenticationToken.unauthenticated(
 						EmailAddress.normalize(request.email()), request.password()));
-		UUID id = UUID.fromString(((UserDetails) result.getPrincipal()).getUsername());
-		return users.findById(id).orElseThrow(() -> new BadCredentialsException("Bad credentials"));
+		MemberDetails details = (MemberDetails) result.getPrincipal();
+		UUID id = UUID.fromString(details.getUsername());
+		// The version comes from the row the password was checked against, not this
+		// later read: if the password changed in between, the session is stale.
+		User user = users.findById(id).orElseThrow(() -> new BadCredentialsException("Bad credentials"));
+		return new SignIn(user, details.getCredentialsVersion());
 	}
 }
