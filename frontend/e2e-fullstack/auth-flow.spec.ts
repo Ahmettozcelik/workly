@@ -309,3 +309,58 @@ test.describe("password reset", () => {
     expect(found.messages).toEqual([]);
   });
 });
+
+test("security settings: sign out another device, then change the password", async ({ page, browser, request }) => {
+  const member = newMember();
+  const newPassword = `Pw-${randomUUID()}`;
+  const sessions = page.getByRole("region", { name: "Aktif oturumlar" }).getByRole("listitem");
+  await register(page, member);
+  await page.goto("/tr/login");
+  await logIn(page, member.email, member.password);
+  await expectFeedOf(page, member);
+
+  async function signInElsewhere() {
+    const other = await browser.newPage();
+    await other.goto("/tr/login");
+    await logIn(other, member.email, member.password);
+    await expectFeedOf(other, member);
+    return other;
+  }
+
+  // Sign out another device from the list.
+  const phone = await signInElsewhere();
+  await page.getByRole("link", { name: "Güvenlik ve oturumlar" }).click();
+  await expect(page).toHaveURL("/tr/settings/security");
+  await expect(sessions).toHaveCount(2);
+  await expect(sessions.first()).toContainText("Bu cihaz");
+  await page.getByRole("button", { name: /^Oturumu kapat/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Oturum kapatıldı." })).toBeVisible();
+  await expect(sessions).toHaveCount(1);
+  await phone.goto("/tr/feed");
+  await expect(phone).toHaveURL("/tr/login");
+  await phone.close();
+
+  // Change the password: the other device is signed out, this one stays.
+  const tablet = await signInElsewhere();
+  await page.reload();
+  await expect(sessions).toHaveCount(2);
+  await passwordFieldNamed(page, "currentPassword").fill(member.password);
+  await passwordFieldNamed(page, "newPassword").fill(newPassword);
+  await page.getByRole("button", { name: "Şifreyi değiştir", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Şifren değiştirildi" })).toBeVisible();
+  await expect(sessions).toHaveCount(1);
+  expect(await mailedText(request, member.email, "Workly şifren değiştirildi")).toContain(
+    "diğer cihazlarda oturum kapatıldı",
+  );
+
+  await tablet.goto("/tr/feed");
+  await expect(tablet).toHaveURL("/tr/login");
+  await logIn(tablet, member.email, newPassword);
+  await expectFeedOf(tablet, member);
+  await tablet.close();
+
+  await page.goto("/tr/feed");
+  await expectFeedOf(page, member);
+});
+
+const passwordFieldNamed = (page: Page, name: string) => page.locator(`input[name="${name}"]`);

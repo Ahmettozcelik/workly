@@ -19,13 +19,17 @@ import org.springframework.stereotype.Component;
  * Starts an authenticated session for a member, as Spring Security's own login
  * filters would: new session id (fixation protection), new CSRF token, and the
  * security context saved in the (JDBC-backed) session. The session also keeps
- * the credentials version the sign-in checked (CredentialsCheckFilter).
+ * the credentials version the sign-in checked (CredentialsCheckFilter) and a
+ * coarse device label for the session list (DeviceLabel).
  */
 @Component
 class SessionLogin {
 
 	/** Session attribute: the member's credentials version when this session signed in. */
 	static final String CREDENTIALS_VERSION = "workly.credentialsVersion";
+
+	/** Session attribute: e.g. "Chrome · Windows"; absent when not recognised. */
+	static final String DEVICE = "workly.device";
 
 	private final SecurityContextHolderStrategy contextHolder = SecurityContextHolder.getContextHolderStrategy();
 	private final SessionAuthenticationStrategy sessionStrategy;
@@ -47,6 +51,7 @@ class SessionLogin {
 		sessionStrategy.onAuthentication(authentication, request, response);
 		contextRepository.saveContext(context, request, response);
 		request.getSession().setAttribute(CREDENTIALS_VERSION, credentialsVersion);
+		request.getSession().setAttribute(DEVICE, DeviceLabel.of(request.getHeader("User-Agent")));
 
 		// The CSRF strategy replaced the token lazily; load it so the response
 		// carries the new XSRF-TOKEN cookie for the client's next request.

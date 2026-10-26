@@ -69,4 +69,12 @@ public final class AuthRequests {
 			@Size(min = PASSWORD_MIN_LENGTH, message = "TOO_SHORT")
 			@MaxUtf8Bytes(PASSWORD_MAX_BYTES) String password) {
 	}
+
+	/** A signed-in member's new password (the same rules as registration) and the current one. */
+	public record ChangePassword(
+			@NotEmpty(message = "REQUIRED") String currentPassword,
+			@NotEmpty(message = "REQUIRED")
+			@Size(min = PASSWORD_MIN_LENGTH, message = "TOO_SHORT")
+			@MaxUtf8Bytes(PASSWORD_MAX_BYTES) String newPassword) {
+	}
 }

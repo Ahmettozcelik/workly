@@ -18,7 +18,8 @@ const NAV_ITEMS: { key: NavItemKey; href: string | null; icon: ComponentType<{ c
   { key: "notifications", href: null, icon: BellIcon },
 ];
 
-type AppNavProps = { current: NavItemKey };
+// current: the highlighted item; none on pages outside the navigation (settings).
+type AppNavProps = { current?: NavItemKey };
 
 // Main navigation as a card in the left column (md and up).
 export function SidebarNav({ current }: AppNavProps) {

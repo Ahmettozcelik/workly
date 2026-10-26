@@ -1,5 +1,5 @@
 import type { Locale } from "next-intl";
-import { postJson } from "./client";
+import { deleteJson, getJson, postJson } from "./client";
 
 // The signed-in member as returned by the API.
 export type ApiUser = {
@@ -9,6 +9,39 @@ export type ApiUser = {
   locale: Locale;
   emailVerified: boolean;
 };
+
+// One of the signed-in member's sessions. `id` is an opaque handle (never the
+// session id); `device` is e.g. "Chrome · Windows", null when unknown. Times
+// are ISO 8601.
+export type ApiSession = {
+  id: string;
+  current: boolean;
+  device: string | null;
+  createdAt: string;
+  lastActiveAt: string;
+};
+
+// Changes the signed-in member's password (204); other sessions end, this one
+// stays. Errors: VALIDATION_FAILED (400; currentPassword INCORRECT, newPassword
+// SAME_AS_CURRENT, the registration rules), RATE_LIMITED (429), UNAUTHENTICATED (401).
+export function changePassword(currentPassword: string, newPassword: string) {
+  return postJson<void>("/api/auth/password", { currentPassword, newPassword });
+}
+
+// The signed-in member's sessions, this one first. Errors: UNAUTHENTICATED (401).
+export function listSessions() {
+  return getJson<ApiSession[]>("/api/auth/sessions");
+}
+
+// Ends one session (204); ending this one signs out. Errors: NOT_FOUND (404), UNAUTHENTICATED (401).
+export function revokeSession(id: string) {
+  return deleteJson<void>(`/api/auth/sessions/${encodeURIComponent(id)}`);
+}
+
+// Ends every session except this one (204). Errors: UNAUTHENTICATED (401).
+export function revokeOtherSessions() {
+  return postJson<void>("/api/auth/sessions/revoke-others", {});
+}
 
 // Registers the email (202, no body, no session). The API answers the same
 // whether or not the email already has an account; the address gets a mail

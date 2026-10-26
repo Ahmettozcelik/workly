@@ -11,16 +11,16 @@ import { COMING_SOON_ID, comingSoonProps } from "./coming-soon";
 import { SearchIcon } from "./icons";
 
 type AppShellProps = {
-  /** Highlighted navigation item. */
-  current: NavItemKey;
+  /** Highlighted navigation item; none for pages outside the navigation (settings). */
+  current?: NavItemKey;
   /** Signed-in member shown in the header. */
   viewerName: string;
   /** Left column above the navigation (e.g. the profile summary). */
   sidebar: ReactNode;
-  /** Right column; below the main content under lg. */
-  aside: ReactNode;
-  /** Accessible name of the right column. */
-  asideLabel: string;
+  /** Right column; below the main content under lg. Optional. */
+  aside?: ReactNode;
+  /** Accessible name of the right column (required with aside). */
+  asideLabel?: string;
   children: ReactNode;
 };
 
@@ -86,12 +86,14 @@ export function AppShell({
           {children}
         </main>
 
-        <aside
-          aria-label={asideLabel}
-          className="min-w-0 space-y-4 md:col-start-2 lg:sticky lg:top-22 lg:col-start-3 lg:row-start-1 lg:self-start"
-        >
-          {aside}
-        </aside>
+        {aside && (
+          <aside
+            aria-label={asideLabel}
+            className="min-w-0 space-y-4 md:col-start-2 lg:sticky lg:top-22 lg:col-start-3 lg:row-start-1 lg:self-start"
+          >
+            {aside}
+          </aside>
+        )}
       </div>
 
       <BottomNav current={current} />

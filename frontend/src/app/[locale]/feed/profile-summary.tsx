@@ -4,6 +4,7 @@ import { VerifiedIcon } from "@/components/app/icons";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Link } from "@/i18n/navigation";
 import type { ApiUser } from "@/lib/api/auth";
 
 // The signed-in member as the backend knows them: name, email and whether the
@@ -32,6 +33,13 @@ export function ProfileSummary({ user }: { user: ApiUser }) {
             {t("verified")}
           </Badge>
         )}
+
+        <Link
+          href="/settings/security"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-accent-text underline underline-offset-2"
+        >
+          {t("security")}
+        </Link>
 
         <LogoutButton />
       </Card>
