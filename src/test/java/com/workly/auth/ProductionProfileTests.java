@@ -72,14 +72,17 @@ class ProductionProfileTests {
 			.andExpect(status().isNoContent())
 			.andReturn().getResponse());
 
-		MockHttpServletResponse registered = browser.post("/api/auth/register", """
-				{"displayName": "Prod Test", "email": "prod-%s@example.com", "password": "correct horse 1"}"""
-				.formatted(UUID.randomUUID()))
-			.andExpect(status().isCreated())
+		String email = "prod-" + UUID.randomUUID() + "@example.com";
+		browser.post("/api/auth/register", """
+				{"displayName": "Prod Test", "email": "%s", "password": "correct horse 1"}""".formatted(email))
+			.andExpect(status().isAccepted());
+		MockHttpServletResponse signedIn = browser.post("/api/auth/login", """
+				{"email": "%s", "password": "correct horse 1"}""".formatted(email))
+			.andExpect(status().isOk())
 			.andReturn().getResponse();
-		assertThat(cookieHeader(registered.getHeaders(HttpHeaders.SET_COOKIE), SESSION_COOKIE))
+		assertThat(cookieHeader(signedIn.getHeaders(HttpHeaders.SET_COOKIE), SESSION_COOKIE))
 			.contains("Secure", "HttpOnly", "SameSite=Lax");
-		assertSecureLaxCsrfCookie(registered);
+		assertSecureLaxCsrfCookie(signedIn);
 	}
 
 	@Test

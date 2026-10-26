@@ -1,6 +1,5 @@
 package com.workly.web;
 
-import com.workly.auth.EmailAlreadyRegisteredException;
 import com.workly.auth.InvalidVerificationTokenException;
 import com.workly.auth.RateLimitedException;
 import java.util.Comparator;
@@ -51,11 +50,6 @@ class ApiExceptionHandler {
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	ResponseEntity<ApiError.Body> malformed() {
 		return ApiError.MALFORMED_REQUEST.toResponse();
-	}
-
-	@ExceptionHandler(EmailAlreadyRegisteredException.class)
-	ResponseEntity<ApiError.Body> emailTaken() {
-		return ApiError.EMAIL_TAKEN.toResponse();
 	}
 
 	@ExceptionHandler(InvalidVerificationTokenException.class)

@@ -1,6 +1,7 @@
 package com.workly.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,15 +54,29 @@ class EmailVerificationIntegrationTests {
 	private record Member(String email, BrowserClient browser) {
 	}
 
+	private static String registerJson(String email, String locale) {
+		return """
+				{"displayName": "Deniz Arslan", "email": "%s", "password": "%s", "locale": "%s"}"""
+			.formatted(email, PASSWORD, locale);
+	}
+
+	/** Registers, then signs in with the member's browser (registering starts no session). */
 	private Member register(String locale) throws Exception {
 		String email = "member-" + UUID.randomUUID() + "@example.com";
 		BrowserClient browser = new BrowserClient(mvc);
-		browser.post("/api/auth/register", """
-				{"displayName": "Deniz Arslan", "email": "%s", "password": "%s", "locale": "%s"}"""
-				.formatted(email, PASSWORD, locale))
-			.andExpect(status().isCreated())
+		browser.post("/api/auth/register", registerJson(email, locale)).andExpect(status().isAccepted());
+		browser.post("/api/auth/login", """
+				{"email": "%s", "password": "%s"}""".formatted(email, PASSWORD))
+			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.emailVerified").value(false));
 		return new Member(email, browser);
+	}
+
+	/** Someone registers with the member's email again, from another device. */
+	private void registerAgain(Member member, String locale) throws Exception {
+		new BrowserClient(mvc).post("/api/auth/register", registerJson(member.email(), locale))
+			.andExpect(status().isAccepted())
+			.andExpect(content().string(""));
 	}
 
 	private Matcher lastLink(String email) {
@@ -210,6 +225,59 @@ class EmailVerificationIntegrationTests {
 			.andExpect(status().isNoContent());
 		member.browser().post("/api/auth/verification-email", "{}").andExpect(status().isNoContent());
 		assertThat(mailer.sentTo(member.email())).hasSize(1);
+	}
+
+	@Test
+	void registeringAgainWhileUnverifiedMailsANewLinkWithinTheResendLimits() throws Exception {
+		Member member = register("tr");
+		String first = lastToken(member.email());
+
+		registerAgain(member, "en");
+		assertThat(mailer.sentTo(member.email())).hasSize(2);
+		// Still in the member's own language: the account is not changed.
+		assertThat(lastLink(member.email()).group(1)).isEqualTo("tr");
+		String second = lastToken(member.email());
+		assertThat(tokenRows(member.email())).isEqualTo(1);
+		member.browser().post("/api/auth/verify-email", verifyJson(first))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VERIFICATION_TOKEN_INVALID"));
+
+		// Past the resend limit (1 per minute) the answer is the same, without a mail.
+		registerAgain(member, "tr");
+		assertThat(mailer.sentTo(member.email())).hasSize(2);
+		member.browser().post("/api/auth/verification-email", "{}").andExpect(status().isTooManyRequests());
+
+		member.browser().post("/api/auth/verify-email", verifyJson(second)).andExpect(status().isNoContent());
+	}
+
+	@Test
+	void registeringAgainAfterVerificationMailsTheOwnerOnceInAWhile() throws Exception {
+		Member member = register("en");
+		member.browser().post("/api/auth/verify-email", verifyJson(lastToken(member.email())))
+			.andExpect(status().isNoContent());
+
+		registerAgain(member, "tr");
+		registerAgain(member, "tr");
+		List<OutgoingMail> mails = mailer.sentTo(member.email());
+		// The verification mail and one notice: at most 1 per 15 minutes (existing-account-limit).
+		assertThat(mails).hasSize(2);
+		OutgoingMail notice = mails.getLast();
+		assertThat(notice.subject()).isEqualTo("You already have a Workly account");
+		assertThat(notice.text()).contains("Hi Deniz Arslan", "http://localhost:3000/en/login")
+			.doesNotContain("verify-email");
+		assertThat(tokenRows(member.email())).isEqualTo(1);
+		member.browser().get("/api/auth/me").andExpect(jsonPath("$.emailVerified").value(true));
+	}
+
+	@Test
+	void theAccountExistsNoticeIsInTheMembersLanguage() throws Exception {
+		Member member = register("tr");
+		member.browser().post("/api/auth/verify-email", verifyJson(lastToken(member.email())))
+			.andExpect(status().isNoContent());
+		registerAgain(member, "en");
+		OutgoingMail notice = mailer.sentTo(member.email()).getLast();
+		assertThat(notice.subject()).isEqualTo("Zaten bir Workly hesabın var");
+		assertThat(notice.text()).contains("Merhaba Deniz Arslan", "http://localhost:3000/tr/login");
 	}
 
 	@Test

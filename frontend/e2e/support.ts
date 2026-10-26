@@ -128,24 +128,27 @@ export async function mockAuthApi(
       const reply = queue.length > 1 ? queue.shift()! : queue[0];
       if (gate) await gate;
       if (reply === "abort") return route.abort("failed");
-      // Like the backend, a successful register / login starts a session; the
-      // mock backend then answers the feed's session check for it.
+      // Like the backend, a successful login starts a session (register does
+      // not); the mock backend then answers the feed's session check for it.
       const locale = (reply.body as { locale?: string } | undefined)?.locale ?? "tr";
       return route.fulfill({
         status: reply.status,
         contentType: reply.status >= 400 ? "application/problem+json" : "application/json",
         headers: {
-          ...(reply.status < 300
+          ...(name === "login" && reply.status < 300
             ? { "set-cookie": `${SESSION_COOKIE}=valid-${locale}; Path=/; HttpOnly; SameSite=Lax` }
             : {}),
           ...reply.headers,
         },
-        body: JSON.stringify(reply.body ?? {}),
+        body: reply.body === undefined ? "" : JSON.stringify(reply.body),
       });
     });
   }
   return calls;
 }
+
+// The backend's answer to every valid registration: 202, no body, no session.
+export const registered: MockReply = { status: 202 };
 
 // 429 RATE_LIMITED, as the backend sends it; Retry-After in seconds unless omitted.
 export const rateLimited = (retryAfterSeconds?: number): MockReply => ({

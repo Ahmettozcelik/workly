@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { PasswordInput } from "@/components/auth/password-input";
 import { RateLimitedAlert } from "@/components/auth/rate-limited-alert";
 import {
@@ -12,22 +12,25 @@ import {
   validateNewPassword,
 } from "@/components/auth/validation";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Link, useRouter } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
 import { register } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 
 // Message keys, translated at render: auth.register.name.* / common.email.* /
-// auth.register.email.errorTaken / auth.register.password.*
+// auth.register.password.*
 type FieldErrors = {
   displayName?: "errorEmpty" | "errorTooLong";
-  email?: "errorEmpty" | "errorInvalid" | "errorTaken";
+  email?: "errorEmpty" | "errorInvalid";
   password?: "errorEmpty" | "errorTooShort" | "errorTooLong";
 };
 type Field = keyof FieldErrors;
-type Status = "editing" | "submitting";
+// sent: the API accepted the registration and mailed the address. It answers
+// the same whether or not the email already has an account, so the page
+// cannot tell either; the mail says which it was.
+type Status = "editing" | "submitting" | "sent";
 
 function validate(displayName: string, email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
@@ -61,7 +64,6 @@ export function RegistrationForm() {
   const t = useTranslations("auth.register");
   const tCommon = useTranslations("common");
   const locale = useLocale();
-  const router = useRouter();
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -80,6 +82,12 @@ export function RegistrationForm() {
     email: useRef<HTMLInputElement>(null),
     password: useRef<HTMLInputElement>(null),
   };
+  const sentHeading = useRef<HTMLHeadingElement>(null);
+
+  // The form is replaced: move focus to the new heading so it is announced.
+  useEffect(() => {
+    if (status === "sent") sentHeading.current?.focus();
+  }, [status]);
 
   const hasErrors = Boolean(errors.displayName || errors.email || errors.password);
 
@@ -104,15 +112,12 @@ export function RegistrationForm() {
     setStatus("submitting");
     try {
       await register({ displayName: displayName.trim(), email: email.trim(), password, locale });
-      // Signed in: go to the feed in the current language. The button keeps
-      // its loading state until the page changes.
-      router.replace("/feed");
+      // No session yet: the member signs in after reading the mail.
+      setPassword("");
+      setShowPassword(false);
+      setStatus("sent");
     } catch (error) {
       setStatus("editing");
-      if (error instanceof ApiError && error.code === "EMAIL_TAKEN") {
-        showErrors({ email: "errorTaken" });
-        return;
-      }
       if (error instanceof ApiError && error.code === "RATE_LIMITED") {
         setRateLimited({ retryAfterSeconds: error.retryAfterSeconds });
         return;
@@ -131,6 +136,46 @@ export function RegistrationForm() {
     if (!attempted) return;
     setErrors(
       validate(next.displayName ?? displayName, next.email ?? email, next.password ?? password),
+    );
+  }
+
+  if (status === "sent") {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h1
+            ref={sentHeading}
+            tabIndex={-1}
+            className="font-display text-3xl font-bold tracking-tight outline-none sm:text-4xl"
+          >
+            {t("checkEmail.title")}
+          </h1>
+          <p className="break-words text-fg-muted">
+            {t.rich("checkEmail.body", {
+              email: email.trim(),
+              strong: (chunks) => <strong className="font-semibold text-fg">{chunks}</strong>,
+            })}
+          </p>
+        </div>
+        <p className="text-sm text-fg-muted">{t("checkEmail.existingAccount")}</p>
+        <p className="text-sm text-fg-muted">{t("checkEmail.spam")}</p>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link href="/login" className={buttonClasses({ size: "lg", className: "sm:flex-1" })}>
+            {t("checkEmail.toLogin")}
+          </Link>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="sm:flex-1"
+            onClick={() => {
+              setAttempted(false);
+              setStatus("editing");
+            }}
+          >
+            {t("checkEmail.useAnotherEmail")}
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -190,13 +235,7 @@ export function RegistrationForm() {
         <FormField
           label={tCommon("email.label")}
           hint={t("email.hint")}
-          error={
-            errors.email === "errorTaken"
-              ? t("email.errorTaken")
-              : errors.email
-                ? tCommon(`email.${errors.email}`)
-                : undefined
-          }
+          error={errors.email ? tCommon(`email.${errors.email}`) : undefined}
           required
         >
           {(control) => (

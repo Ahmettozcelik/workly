@@ -8,6 +8,4 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
 	/** Expects a normalised email ({@link EmailAddress#normalize}). */
 	Optional<User> findByEmail(String email);
-
-	boolean existsByEmail(String email);
 }

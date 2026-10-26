@@ -74,9 +74,11 @@ class AuthApiIntegrationTests {
 		return value == null ? "null" : "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
 	}
 
+	/** Registers and then signs in with this test's browser (registering starts no session). */
 	private String register(String email) throws Exception {
 		browser.post("/api/auth/register", registerJson("Ayşe Yılmaz", email, PASSWORD, "tr"))
-			.andExpect(status().isCreated());
+			.andExpect(status().isAccepted());
+		browser.post("/api/auth/login", loginJson(email, PASSWORD)).andExpect(status().isOk());
 		return email;
 	}
 
@@ -117,11 +119,24 @@ class AuthApiIntegrationTests {
 	// --- Register ---------------------------------------------------------
 
 	@Test
-	void registerCreatesTheAccountAndSignsIn() throws Exception {
+	void registerCreatesTheAccountWithoutASession() throws Exception {
 		String email = uniqueEmail();
 		browser.post("/api/auth/register", registerJson("  Ayşe Yılmaz  ", email, PASSWORD, "en"))
-			.andExpect(status().isCreated())
-			.andExpect(jsonPath("$.id").isNotEmpty())
+			.andExpect(status().isAccepted())
+			.andExpect(content().string(""));
+		assertThat(browser.cookie(SESSION_COOKIE)).isNull();
+		browser.get("/api/auth/me").andExpect(status().isUnauthorized());
+
+		var row = jdbc.queryForMap(
+				"SELECT id, password_hash, email_verified, locale FROM users WHERE email = ?", email);
+		assertThat((String) row.get("password_hash")).startsWith("{bcrypt}$2").doesNotContain(PASSWORD);
+		assertThat(row.get("email_verified")).isEqualTo(false);
+		assertThat(row.get("locale")).isEqualTo("en");
+
+		// Signing in works before the email is verified.
+		browser.post("/api/auth/login", loginJson(email, PASSWORD))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(row.get("id").toString()))
 			.andExpect(jsonPath("$.email").value(email))
 			.andExpect(jsonPath("$.displayName").value("Ayşe Yılmaz"))
 			.andExpect(jsonPath("$.locale").value("en"))
@@ -131,16 +146,9 @@ class AuthApiIntegrationTests {
 			.andExpect(header().stringValues(HttpHeaders.SET_COOKIE, hasItem(allOf(
 					containsString(SESSION_COOKIE + "="), containsString("HttpOnly"),
 					containsString("SameSite=Lax"), containsString("Path=/")))));
-
 		browser.get("/api/auth/me")
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.email").value(email));
-
-		var row = jdbc.queryForMap(
-				"SELECT id, password_hash, email_verified, locale FROM users WHERE email = ?", email);
-		assertThat((String) row.get("password_hash")).startsWith("{bcrypt}$2").doesNotContain(PASSWORD);
-		assertThat(row.get("email_verified")).isEqualTo(false);
-		assertThat(row.get("locale")).isEqualTo("en");
 
 		// The session lives in PostgreSQL (Spring Session JDBC), keyed by the member
 		// id, with the 12-hour idle timeout from application.yml.
@@ -151,19 +159,44 @@ class AuthApiIntegrationTests {
 	}
 
 	@Test
-	void registerNormalisesTheEmailAndRejectsDuplicatesInAnyCase() throws Exception {
+	void registeringAnEmailAgainInAnyCaseChangesNothing() throws Exception {
 		String email = uniqueEmail();
 		browser.post("/api/auth/register",
 				registerJson("Ali Veli", "  " + email.toUpperCase() + " ", PASSWORD, null))
-			.andExpect(status().isCreated())
-			.andExpect(jsonPath("$.email").value(email))
-			.andExpect(jsonPath("$.locale").value("tr"));
+			.andExpect(status().isAccepted());
 
-		new BrowserClient(mvc).post("/api/auth/register", registerJson("Başka Biri", email, PASSWORD, "tr"))
-			.andExpect(status().isConflict())
-			.andExpect(jsonPath("$.code").value("EMAIL_TAKEN"));
+		new BrowserClient(mvc).post("/api/auth/register",
+				registerJson("Başka Biri", email.toUpperCase(), "another password", "en"))
+			.andExpect(status().isAccepted());
+
 		assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE email = ?", Integer.class, email))
 			.isEqualTo(1);
+		// The first registration stands: normalised email, its name, password and default language.
+		new BrowserClient(mvc).post("/api/auth/login", loginJson(email, "another password"))
+			.andExpect(status().isUnauthorized());
+		new BrowserClient(mvc).post("/api/auth/login", loginJson(email, PASSWORD))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.email").value(email))
+			.andExpect(jsonPath("$.displayName").value("Ali Veli"))
+			.andExpect(jsonPath("$.locale").value("tr"));
+	}
+
+	@Test
+	void registerAnswersTheSameWhetherOrNotTheEmailHasAnAccount() throws Exception {
+		String member = register(uniqueEmail());
+		var existing = new BrowserClient(mvc)
+			.post("/api/auth/register", registerJson("Ali Veli", member, PASSWORD, "tr"))
+			.andReturn().getResponse();
+		var fresh = new BrowserClient(mvc)
+			.post("/api/auth/register", registerJson("Ali Veli", uniqueEmail(), PASSWORD, "tr"))
+			.andReturn().getResponse();
+
+		assertThat(existing.getStatus()).isEqualTo(fresh.getStatus()).isEqualTo(202);
+		assertThat(existing.getContentAsString()).isEqualTo(fresh.getContentAsString()).isEmpty();
+		assertThat(existing.getHeaderNames()).isEqualTo(fresh.getHeaderNames());
+		for (String name : fresh.getHeaderNames()) {
+			assertThat(existing.getHeaders(name)).as(name).isEqualTo(fresh.getHeaders(name));
+		}
 	}
 
 	static Stream<Arguments> invalidRegistrations() {
@@ -197,8 +230,10 @@ class AuthApiIntegrationTests {
 
 	@Test
 	void registerAcceptsAPasswordOfExactly72Bytes() throws Exception {
-		browser.post("/api/auth/register", registerJson("Ali", uniqueEmail(), "ş".repeat(36), "tr"))
-			.andExpect(status().isCreated());
+		String email = uniqueEmail();
+		browser.post("/api/auth/register", registerJson("Ali", email, "ş".repeat(36), "tr"))
+			.andExpect(status().isAccepted());
+		browser.post("/api/auth/login", loginJson(email, "ş".repeat(36))).andExpect(status().isOk());
 	}
 
 	@Test
@@ -397,7 +432,7 @@ class AuthApiIntegrationTests {
 		for (int i = 0; i < MAX_REGISTRATIONS_PER_ADDRESS; i++) {
 			new BrowserClient(mvc, address)
 				.post("/api/auth/register", registerJson("Ali Veli", uniqueEmail(), PASSWORD, "tr"))
-				.andExpect(status().isCreated());
+				.andExpect(status().isAccepted());
 		}
 		String email = uniqueEmail();
 		ResultActions limited = new BrowserClient(mvc, address)

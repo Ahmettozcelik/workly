@@ -3,7 +3,7 @@ import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
-import { AXE_TAGS, expect, mockAuthApi, mockUser, problem, test, THEME_KEY } from "./support";
+import { AXE_TAGS, expect, mockAuthApi, problem, registered, test, THEME_KEY } from "./support";
 
 type Messages = { [key: string]: string | Messages };
 const LOCALES = ["tr", "en"] as const;
@@ -148,11 +148,11 @@ test.describe("English register page", () => {
     await expect(errorSummary(page)).toHaveCount(0);
   });
 
-  test("registers in English and opens the English feed", async ({ page }) => {
+  test("registers in English and asks to check the inbox in English", async ({ page }) => {
     let release = () => {};
     const calls = await mockAuthApi(
       page,
-      { register: [{ status: 201, body: mockUser("en") }] },
+      { register: [registered] },
       new Promise<void>((resolve) => (release = resolve)),
     );
     await page.goto("/en/register");
@@ -163,7 +163,10 @@ test.describe("English register page", () => {
 
     await expect(page.getByRole("button", { name: "Creating account" })).toHaveAttribute("aria-busy", "true");
     release();
-    await expect(page).toHaveURL("/en/feed");
+    await expect(page.getByRole("heading", { level: 1, name: "Check your inbox" })).toBeFocused();
+    await expect(page.getByText("We sent an email to ali.yilmaz@example.com.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Go to sign in" })).toHaveAttribute("href", "/en/login");
+    await expect(page.getByRole("button", { name: "Use a different email" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     expect(calls.find((call) => call.path === "/api/auth/register")?.body).toMatchObject({ locale: "en" });
   });
@@ -195,14 +198,19 @@ test.describe("English register page", () => {
   test.describe("with API errors", () => {
     test.use({ expectApiErrors: true });
 
-    test("shows English messages for a taken email and a server error", async ({ page }) => {
-      await mockAuthApi(page, { register: [problem(409, "EMAIL_TAKEN"), problem(500, "INTERNAL_ERROR")] });
+    test("shows English messages for server field errors and a server error", async ({ page }) => {
+      await mockAuthApi(page, {
+        register: [
+          problem(400, "VALIDATION_FAILED", [{ field: "email", code: "INVALID_EMAIL" }]),
+          problem(500, "INTERNAL_ERROR"),
+        ],
+      });
       await page.goto("/en/register");
       await nameField(page).fill("Ali Yilmaz");
       await emailField(page).fill("ali.yilmaz@example.com");
       await passwordField(page).fill("secure-password");
       await submitButton(page).click();
-      await expect(emailField(page)).toHaveAccessibleDescription(/An account with this email already exists\./);
+      await expect(emailField(page)).toHaveAccessibleDescription(/Enter a valid email address\./);
 
       await emailField(page).fill("ali.yilmaz2@example.com");
       await submitButton(page).click();
@@ -212,8 +220,8 @@ test.describe("English register page", () => {
     });
 
     for (const scheme of ["light", "dark"] as const) {
-      test(`has no axe violations in the ${scheme} theme (initial, error, email taken)`, async ({ page }) => {
-        await mockAuthApi(page, { register: [problem(409, "EMAIL_TAKEN")] });
+      test(`has no axe violations in the ${scheme} theme (initial, error, check inbox)`, async ({ page }) => {
+        await mockAuthApi(page, { register: [registered] });
         await page.emulateMedia({ colorScheme: scheme });
         await page.goto("/en/register");
         await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
@@ -227,7 +235,7 @@ test.describe("English register page", () => {
         await emailField(page).fill("ali.yilmaz@example.com");
         await passwordField(page).fill("secure-password");
         await submitButton(page).click();
-        await expect(emailField(page)).toHaveAccessibleDescription(/An account with this email already exists\./);
+        await expect(page.getByRole("heading", { level: 1, name: "Check your inbox" })).toBeVisible();
         expect(await scan()).toEqual([]);
       });
     }

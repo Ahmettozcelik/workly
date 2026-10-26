@@ -51,8 +51,7 @@
         "errorTooLong": "Full name can be at most {max} characters."
       },
       "email": {
-        "hint": "Use your personal email address. You can add your work email later to link your account to your company.",
-        "errorTaken": "An account with this email already exists."
+        "hint": "Use your personal email address. You can add your work email later to link your account to your company."
       },
       "password": {
         "hint": "Use at least {min} characters.",
@@ -62,6 +61,14 @@
       },
       "submit": "Create account",
       "submitting": "Creating account",
+      "checkEmail": {
+        "title": "Check your inbox",
+        "body": "We sent an email to <strong>{email}</strong>. Open the link in it to verify your account.",
+        "existingAccount": "If you already have an account with this address, the email tells you how to sign in.",
+        "spam": "If it does not arrive within a few minutes, check your spam folder.",
+        "toLogin": "Go to sign in",
+        "useAnotherEmail": "Use a different email"
+      },
       "legal": "By continuing, you agree to the <terms>Terms of Use</terms> and acknowledge that you have read our <privacy>Privacy Notice</privacy>.",
       "signInPrompt": "Already have an account? <link>Sign in</link>"
     },

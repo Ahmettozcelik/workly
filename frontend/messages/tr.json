@@ -51,8 +51,7 @@
         "errorTooLong": "Ad Soyad en fazla {max} karakter olabilir."
       },
       "email": {
-        "hint": "Kişisel e-posta adresini kullan. İş e-postanı şirket bağlantısı için daha sonra ekleyebilirsin.",
-        "errorTaken": "Bu e-posta adresiyle zaten bir hesap var."
+        "hint": "Kişisel e-posta adresini kullan. İş e-postanı şirket bağlantısı için daha sonra ekleyebilirsin."
       },
       "password": {
         "hint": "En az {min} karakter.",
@@ -62,6 +61,14 @@
       },
       "submit": "Hesap oluştur",
       "submitting": "Hesap oluşturuluyor",
+      "checkEmail": {
+        "title": "Gelen kutunu kontrol et",
+        "body": "<strong>{email}</strong> adresine bir e-posta gönderdik. Hesabını doğrulamak için e-postadaki bağlantıyı aç.",
+        "existingAccount": "Bu adresle zaten bir hesabın varsa, e-postada nasıl giriş yapacağın yazıyor.",
+        "spam": "E-posta birkaç dakika içinde gelmezse istenmeyen (spam) klasörüne bak.",
+        "toLogin": "Giriş sayfasına git",
+        "useAnotherEmail": "Farklı bir e-posta kullan"
+      },
       "legal": "Devam ederek <terms>Kullanım Koşulları</terms>'nı kabul etmiş ve <privacy>Aydınlatma Metni</privacy>'ni okumuş olursun.",
       "signInPrompt": "Zaten hesabın var mı? <link>Giriş yap</link>"
     },
