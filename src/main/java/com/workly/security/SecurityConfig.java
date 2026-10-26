@@ -1,5 +1,7 @@
 package com.workly.security;
 
+import com.workly.auth.CredentialsCheckFilter;
+import com.workly.auth.MemberDetails;
 import com.workly.user.EmailAddress;
 import com.workly.user.UserRepository;
 import com.workly.web.ApiError;
@@ -27,6 +29,7 @@ import org.springframework.security.web.authentication.session.ChangeSessionIdAu
 import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfAuthenticationStrategy;
@@ -49,8 +52,12 @@ class SecurityConfig {
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, CookieCsrfTokenRepository csrfTokenRepository,
-			SecurityContextRepository securityContextRepository) throws Exception {
+			SecurityContextRepository securityContextRepository, UserRepository users) throws Exception {
 		http
+			// Right after the session's security context is loaded: a session whose
+			// password changed since its sign-in ends here (not a bean, so Boot does
+			// not also register it as a servlet filter).
+			.addFilterAfter(new CredentialsCheckFilter(users), SecurityContextHolderFilter.class)
 			.authorizeHttpRequests(requests -> requests
 				.requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/verify-email",
@@ -112,15 +119,15 @@ class SecurityConfig {
 		return PasswordEncoderFactories.createDelegatingPasswordEncoder();
 	}
 
-	/** Looks members up by email; the username Spring Security sees is the member's id. */
+	/**
+	 * Looks members up by email; the username Spring Security sees is the
+	 * member's id, and the credentials version comes from the same row as the
+	 * password hash (MemberDetails).
+	 */
 	@Bean
 	UserDetailsService userDetailsService(UserRepository users) {
 		return email -> users.findByEmail(EmailAddress.normalize(email))
-			.map(user -> org.springframework.security.core.userdetails.User
-				.withUsername(user.getId().toString())
-				.password(user.getPasswordHash())
-				.authorities("ROLE_USER")
-				.build())
+			.map(MemberDetails::new)
 			.orElseThrow(() -> new UsernameNotFoundException("Unknown email"));
 	}
 

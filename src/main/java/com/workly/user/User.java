@@ -36,6 +36,10 @@ public class User {
 	@Column(name = "email_verified", nullable = false)
 	private boolean emailVerified;
 
+	/** Raised by every password change; sessions signed in with an older one end (V6). */
+	@Column(name = "credentials_version", nullable = false)
+	private int credentialsVersion;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -93,9 +97,18 @@ public class User {
 		emailVerified = true;
 	}
 
-	/** A new password hash (PasswordResetService); the caller ends the member's sessions. */
+	public int getCredentialsVersion() {
+		return credentialsVersion;
+	}
+
+	/**
+	 * A new password hash (PasswordResetService). Raises the credentials version,
+	 * so every session signed in with the old password ends on its next request
+	 * (CredentialsCheckFilter).
+	 */
 	public void changePassword(String passwordHash) {
 		this.passwordHash = passwordHash;
+		credentialsVersion++;
 	}
 
 	public Instant getCreatedAt() {

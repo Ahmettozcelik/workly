@@ -29,10 +29,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * emails get nothing.
  *
  * <p>Using a link sets the new password, verifies the email (the link proved
- * ownership), lifts a sign-in block and ends every session of the member. A
- * sign-in that checked the old password just before the change can still save
- * its session right after the sessions are deleted; closing that window needs
- * a credentials check on each request (planned with active sessions, L3).
+ * ownership), lifts a sign-in block and ends every session of the member. The
+ * new password raises the credentials version, so a sign-in that checked the
+ * old password just before the change and saved its session right after the
+ * deletion is ended on its next request (CredentialsCheckFilter).
  *
  * <p>The per-member limits are in memory: right for a single instance; with
  * several, move them to PostgreSQL like LoginThrottle.

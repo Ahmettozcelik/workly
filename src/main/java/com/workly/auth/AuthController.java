@@ -66,9 +66,9 @@ class AuthController {
 	UserResponse login(@Valid @RequestBody AuthRequests.Login body, HttpServletRequest request,
 			HttpServletResponse response) {
 		addressRateLimits.checkLogin(request);
-		var user = authService.authenticate(body);
-		sessionLogin.logIn(user, request, response);
-		return UserResponse.of(user);
+		var signIn = authService.authenticate(body);
+		sessionLogin.logIn(signIn.user(), signIn.credentialsVersion(), request, response);
+		return UserResponse.of(signIn.user());
 	}
 
 	/**

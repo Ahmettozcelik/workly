@@ -261,6 +261,9 @@ class PasswordResetIntegrationTests {
 		signIn(browser, email, NEW_PASSWORD).andExpect(status().isOk())
 			.andExpect(jsonPath("$.emailVerified").value(true));
 		assertThat(passwordHash(email)).startsWith("{bcrypt}$2");
+		// Sessions signed in with the old password are stale from now on (CredentialsCheckFilter).
+		assertThat(jdbc.queryForObject("SELECT credentials_version FROM users WHERE email = ?", Integer.class, email))
+			.isEqualTo(1);
 
 		OutgoingMail changed = mailer.sentTo(email).getLast();
 		assertThat(changed.subject()).isEqualTo("Workly şifren değiştirildi");

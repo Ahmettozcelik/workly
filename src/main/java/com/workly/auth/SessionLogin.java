@@ -18,10 +18,14 @@ import org.springframework.stereotype.Component;
 /**
  * Starts an authenticated session for a member, as Spring Security's own login
  * filters would: new session id (fixation protection), new CSRF token, and the
- * security context saved in the (JDBC-backed) session.
+ * security context saved in the (JDBC-backed) session. The session also keeps
+ * the credentials version the sign-in checked (CredentialsCheckFilter).
  */
 @Component
 class SessionLogin {
+
+	/** Session attribute: the member's credentials version when this session signed in. */
+	static final String CREDENTIALS_VERSION = "workly.credentialsVersion";
 
 	private final SecurityContextHolderStrategy contextHolder = SecurityContextHolder.getContextHolderStrategy();
 	private final SessionAuthenticationStrategy sessionStrategy;
@@ -32,7 +36,8 @@ class SessionLogin {
 		this.contextRepository = contextRepository;
 	}
 
-	void logIn(User user, HttpServletRequest request, HttpServletResponse response) {
+	/** credentialsVersion: read with the password hash the sign-in checked (MemberDetails). */
+	void logIn(User user, int credentialsVersion, HttpServletRequest request, HttpServletResponse response) {
 		Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
 				new AuthenticatedUser(user.getId()), null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
 		SecurityContext context = contextHolder.createEmptyContext();
@@ -41,6 +46,7 @@ class SessionLogin {
 
 		sessionStrategy.onAuthentication(authentication, request, response);
 		contextRepository.saveContext(context, request, response);
+		request.getSession().setAttribute(CREDENTIALS_VERSION, credentialsVersion);
 
 		// The CSRF strategy replaced the token lazily; load it so the response
 		// carries the new XSRF-TOKEN cookie for the client's next request.
