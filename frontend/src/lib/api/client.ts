@@ -8,8 +8,8 @@ const TIMEOUT_MS = 15_000;
 
 export type ApiFieldError = { field: string; code: string };
 
-// A failed request. `code` is the API's machine-readable code (EMAIL_TAKEN,
-// VALIDATION_FAILED, ...), NETWORK_ERROR when there was no response, or
+// A failed request. `code` is the API's machine-readable code (VALIDATION_FAILED,
+// RATE_LIMITED, ...), NETWORK_ERROR when there was no response, or
 // UNEXPECTED for a response without a code. Never show server text to users.
 // retryAfterSeconds: from Retry-After (RATE_LIMITED), when the API sent it.
 export class ApiError extends Error {
@@ -81,5 +81,7 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
     response = await send("POST", path, body, await fetchCsrfToken());
   }
   if (!response.ok) throw await toApiError(response);
-  return (response.status === 204 ? undefined : await response.json()) as T;
+  // 204, and 202 from register, have no body.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }

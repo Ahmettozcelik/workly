@@ -10,10 +10,11 @@ export type ApiUser = {
   emailVerified: boolean;
 };
 
-// Creates the account and starts a session (201).
-// Errors: VALIDATION_FAILED (400), EMAIL_TAKEN (409).
+// Registers the email (202, no body, no session). The API answers the same
+// whether or not the email already has an account; the address gets a mail
+// either way. Errors: VALIDATION_FAILED (400), RATE_LIMITED (429).
 export function register(input: { displayName: string; email: string; password: string; locale: Locale }) {
-  return postJson<ApiUser>("/api/auth/register", input);
+  return postJson<void>("/api/auth/register", input);
 }
 
 // Starts a session (200). Errors: INVALID_CREDENTIALS (401), VALIDATION_FAILED (400).

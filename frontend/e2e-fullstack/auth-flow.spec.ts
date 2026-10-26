@@ -33,21 +33,35 @@ async function logIn(page: Page, email: string, password: string) {
   await page.getByRole("button", { name: "Giriş yap", exact: true }).click();
 }
 
+// Registers through the form; the page then asks to check the inbox, whether
+// or not the email already had an account. No session is started.
+async function register(page: Page, member: Member) {
+  await page.goto("/tr/register");
+  await page.getByRole("textbox", { name: "Ad Soyad" }).fill(member.displayName);
+  await emailField(page).fill(member.email);
+  await passwordField(page).fill(member.password);
+  await page.getByRole("button", { name: "Hesap oluştur" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Gelen kutunu kontrol et" })).toBeVisible();
+  await expect(page.getByText(`${member.email} adresine bir e-posta gönderdik.`)).toBeVisible();
+  await expect(page).toHaveURL("/tr/register");
+}
+
 async function logOut(page: Page) {
   await logoutButton(page).click();
   await expect(page).toHaveURL("/tr/login");
   await expect(page.getByRole("heading", { level: 1, name: "Tekrar hoş geldin" })).toBeVisible();
 }
 
-test("register → feed → logout → login → feed → logout", async ({ page }) => {
+test("register → check inbox → login → feed → logout → login → feed → logout", async ({ page }) => {
   const member = newMember();
 
-  await page.goto("/tr/register");
-  await page.getByRole("textbox", { name: "Ad Soyad" }).fill(member.displayName);
-  await emailField(page).fill(member.email);
-  await passwordField(page).fill(member.password);
-  await page.getByRole("button", { name: "Hesap oluştur" }).click();
-  // Registering signs the new member in.
+  await register(page, member);
+  // Registering starts no session.
+  await page.goto("/tr/feed");
+  await expect(page).toHaveURL("/tr/login");
+
+  // Signing in works before the email is verified.
+  await logIn(page, member.email, member.password);
   await expectFeedOf(page, member);
 
   await logOut(page);
@@ -67,19 +81,27 @@ test("register → feed → logout → login → feed → logout", async ({ page
 // backend's mailed links must point to this frontend (APP_BASE_URL).
 const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://localhost:8025";
 
-// The verification link from the last mail Mailpit received for this address.
-async function mailedVerificationLink(request: APIRequestContext, email: string) {
-  const search = `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`;
+// The text of the newest mail with this subject that Mailpit received for the
+// address (mails are sent in the background, so it is polled for).
+async function mailedText(request: APIRequestContext, email: string, subject: string) {
+  const query = `to:"${email}" subject:"${subject}"`;
+  const search = `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(query)}`;
   let id: string | undefined;
   await expect
     .poll(async () => {
       const found = (await (await request.get(search)).json()) as { messages: { ID: string }[] };
       id = found.messages[0]?.ID;
       return id;
-    }, { message: `a mail to ${email} in Mailpit`, timeout: 15_000 })
+    }, { message: `a mail "${subject}" to ${email} in Mailpit`, timeout: 15_000 })
     .toBeTruthy();
   const message = (await (await request.get(`${MAILPIT_URL}/api/v1/message/${id}`)).json()) as { Text: string };
-  const link = message.Text.match(/https?:\/\/\S+\/tr\/verify-email\?token=[A-Za-z0-9_-]+/)?.[0];
+  return message.Text;
+}
+
+// The verification link from the last verification mail for this address.
+async function mailedVerificationLink(request: APIRequestContext, email: string) {
+  const text = await mailedText(request, email, "Workly e-posta adresini doğrula");
+  const link = text.match(/https?:\/\/\S+\/tr\/verify-email\?token=[A-Za-z0-9_-]+/)?.[0];
   expect(link, "verification link in the mail").toBeTruthy();
   return link!;
 }
@@ -88,11 +110,9 @@ test("the mailed link verifies the email", async ({ page, request }) => {
   const member = newMember();
   const banner = page.getByRole("region", { name: "E-postanı doğrula" });
 
-  await page.goto("/tr/register");
-  await page.getByRole("textbox", { name: "Ad Soyad" }).fill(member.displayName);
-  await emailField(page).fill(member.email);
-  await passwordField(page).fill(member.password);
-  await page.getByRole("button", { name: "Hesap oluştur" }).click();
+  await register(page, member);
+  await page.goto("/tr/login");
+  await logIn(page, member.email, member.password);
   await expectFeedOf(page, member);
   await expect(banner).toContainText(member.email);
   await expect(profile(page, member).getByText("E-posta doğrulandı")).toHaveCount(0);
@@ -107,6 +127,34 @@ test("the mailed link verifies the email", async ({ page, request }) => {
   await expectFeedOf(page, member);
   await expect(profile(page, member).getByText("E-posta doğrulandı")).toBeVisible();
   await expect(banner).toHaveCount(0);
+});
+
+test("registering a verified member's email again looks the same and mails the owner", async ({ browser, request }) => {
+  const member = newMember();
+  const owner = await browser.newPage();
+  await register(owner, member);
+  // Verified from the link, signed out (another device).
+  await owner.goto(await mailedVerificationLink(request, member.email));
+  await owner.getByRole("button", { name: "E-postamı doğrula" }).click();
+  await expect(owner.getByRole("status").filter({ hasText: "E-postan doğrulandı" })).toBeVisible();
+  await owner.close();
+
+  // Someone else, with another name and password: the same answer as for a new account.
+  const other = await browser.newPage();
+  await register(other, { ...member, displayName: "Başka Biri", password: `Pw-${randomUUID()}` });
+  await other.close();
+
+  const notice = await mailedText(request, member.email, "Zaten bir Workly hesabın var");
+  expect(notice).toContain(`Merhaba ${member.displayName}`);
+  expect(notice).toMatch(/https?:\/\/\S+\/tr\/login/);
+
+  // The account is unchanged: the original password still signs in.
+  const page = await browser.newPage();
+  await page.goto("/tr/login");
+  await logIn(page, member.email, member.password);
+  await expectFeedOf(page, member);
+  await expect(profile(page, member).getByText("E-posta doğrulandı")).toBeVisible();
+  await page.close();
 });
 
 test("pages get the frontend's security headers, /api keeps the backend's own", async ({ request }) => {
@@ -146,7 +194,7 @@ test.describe("wrong password", () => {
       data: { ...member, locale: "tr" },
       headers: { "X-XSRF-TOKEN": csrfToken! },
     });
-    expect(registered.status()).toBe(201);
+    expect(registered.status()).toBe(202);
 
     await page.goto("/tr/login");
     await logIn(page, member.email, `${member.password}-wrong`);

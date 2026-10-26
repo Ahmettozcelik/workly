@@ -4,6 +4,7 @@ import com.workly.user.EmailAddress;
 import com.workly.user.User;
 import com.workly.user.UserRepository;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,30 +25,43 @@ public class AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final AuthenticationManager authenticationManager;
 	private final LoginThrottle loginThrottle;
+	private final EmailVerificationService emailVerification;
 
 	AuthService(UserRepository users, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager,
-			LoginThrottle loginThrottle) {
+			LoginThrottle loginThrottle, EmailVerificationService emailVerification) {
 		this.users = users;
 		this.passwordEncoder = passwordEncoder;
 		this.authenticationManager = authenticationManager;
 		this.loginThrottle = loginThrottle;
+		this.emailVerification = emailVerification;
 	}
 
-	/** Creates the member; the request is already validated. */
-	public User register(AuthRequests.Register request) {
+	/**
+	 * Registers the email; the request is already validated. The caller learns
+	 * nothing about whether the email already had an account: the password is
+	 * hashed either way, and mails go out in the background. A new email gets
+	 * an account and a verification link; an existing account is never changed,
+	 * its owner gets a mail instead (EmailVerificationService.registeredAgain).
+	 */
+	public void register(AuthRequests.Register request) {
 		String email = EmailAddress.normalize(request.email());
-		if (users.existsByEmail(email)) {
-			throw new EmailAlreadyRegisteredException();
+		// Before the lookup, so an existing email takes as long as a new one.
+		String passwordHash = passwordEncoder.encode(request.password());
+		Optional<User> existing = users.findByEmail(email);
+		if (existing.isPresent()) {
+			emailVerification.registeredAgain(existing.get());
+			return;
 		}
 		String locale = request.locale() == null ? DEFAULT_LOCALE : request.locale();
-		User user = new User(email, passwordEncoder.encode(request.password()), request.displayName(), locale);
+		User user;
 		try {
-			return users.saveAndFlush(user);
+			user = users.saveAndFlush(new User(email, passwordHash, request.displayName(), locale));
 		}
 		catch (DataIntegrityViolationException ex) {
-			// Lost a race with a concurrent registration of the same email.
-			throw new EmailAlreadyRegisteredException();
+			// A concurrent registration of the same email won the race; it mails the owner.
+			return;
 		}
+		emailVerification.issue(user);
 	}
 
 	/**

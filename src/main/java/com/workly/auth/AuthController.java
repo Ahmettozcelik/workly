@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -47,17 +46,16 @@ class AuthController {
 	}
 
 	/**
-	 * Creates the account, mails a verification link and signs the new member in.
+	 * 202 with no body for every valid request, whether or not the email already
+	 * has an account (see AuthService.register); what happened is mailed to the
+	 * address. No session: the member signs in afterwards.
 	 * 429 RATE_LIMITED: too many from this address.
 	 */
 	@PostMapping("/register")
-	ResponseEntity<UserResponse> register(@Valid @RequestBody AuthRequests.Register body, HttpServletRequest request,
-			HttpServletResponse response) {
+	ResponseEntity<Void> register(@Valid @RequestBody AuthRequests.Register body, HttpServletRequest request) {
 		addressRateLimits.checkRegister(request);
-		var user = authService.register(body);
-		emailVerification.issue(user);
-		sessionLogin.logIn(user, request, response);
-		return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.of(user));
+		authService.register(body);
+		return ResponseEntity.accepted().build();
 	}
 
 	/** 429 RATE_LIMITED: too many attempts from this address, or this email is blocked for a while. */

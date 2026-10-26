@@ -68,6 +68,11 @@ workly:
           window: 1m
         - max-requests: 5
           window: 1h
+      # Per verified member whose email someone registers with again: the
+      # "account exists" mail (registration answers the same either way).
+      existing-account-limit:
+        max-requests: 1
+        window: 15m
 
   mail:
     # Sender address of Workly's mails (prod: MAIL_FROM).
